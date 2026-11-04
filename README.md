@@ -18,6 +18,29 @@ We reimplement the model in Python and reproduce its main result. We then improv
 - Report 2 (11 Dec 2026): improved predator, 3D version of the model, comparison with the literature.
 - Report 3 (8 Jan 2027): shepherd, compared with [Van Havermaet et al. (2024)](https://doi.org/10.1038/s41598-024-65894-5) (a group of robots that encircle a fish school to guide it); final report.
 
+## Running the original C++ code
+
+To read the reference implementation and compare our Python model with it. Commands are run from the repository root. `local/` is ignored by git.
+
+```bash
+sudo apt install libhdf5-dev libgsl-dev libcgal-dev libgmp-dev libboost-system-dev libboost-thread-dev
+pip install h5py matplotlib
+git clone https://github.com/PaPeK/PredatorPrey.git local/PredatorPrey
+# CGAL 5 is header-only, so -lCGAL is removed from the default link flags
+make -C local/PredatorPrey LFLAGS="-lgsl -lgslcblas -lm -lgmp -lboost_system -lboost_thread"
+```
+
+Comparison with the Python model (one C++ run takes about 15 s):
+
+```bash
+mkdir -p results
+python3 scripts/run_cpp.py local/PredatorPrey results/cpp.jsonl 0.5,1,2,5 4   # alignment strengths, runs per value
+python3 scripts/compare_cpp.py results/cpp.jsonl results/py.jsonl 4            # same values in Python, prints a table
+python3 scripts/plot_comparison.py results/cpp.jsonl results/py.jsonl results/comparison.png
+```
+
+C++ runs cannot be reproduced because the seed comes from the clock, so we compare means instead.
+
 ## Team (Group F)
 
 | Name | GitHub |
