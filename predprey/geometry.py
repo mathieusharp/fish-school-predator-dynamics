@@ -29,6 +29,40 @@ def delaunay_edges(points):
     return np.unique(edges, axis=0)
 
 
+def delaunay_edges_counted(points, rng):
+    """Delaunay edges (i, j), i < j, and for each edge the end whose neighbour counter the C++ increases.
+
+    C++: CGAL reports each edge once, from one of its two triangles (the one with the
+    smaller handle), and IntCalcPrey only increases the counter of f.vertex(cw(i)).
+    Handles are modelled by a random rank per triangle. A prey inside the school then
+    has a counter between 1 and (number of neighbours - 1), never 0.
+    """
+    try:
+        tri = Delaunay(points)
+    except (QhullError, ValueError):  # fewer than 3 points or degenerate: end chosen at random
+        edges = delaunay_edges(points)
+        return edges, edges[np.arange(len(edges)), rng.integers(0, 2, len(edges))]
+    s, nb = tri.simplices.copy(), tri.neighbors.copy()
+    p = points[s]
+    clockwise = np.cross(p[:, 1] - p[:, 0], p[:, 2] - p[:, 0]) < 0
+    s[clockwise] = s[clockwise][:, [0, 2, 1]]  # CGAL triangles are counter-clockwise
+    nb[clockwise] = nb[clockwise][:, [0, 2, 1]]
+    rank = rng.permutation(len(s))
+
+    edges, counted = [], []
+    for k in range(3):  # edge opposite to vertex k of each triangle
+        vi, vj = s[:, (k + 2) % 3], s[:, (k + 1) % 3]  # cw(k), ccw(k)
+        other = nb[:, k]
+        # on the hull, the other triangle is CGAL's infinite face: reported from either side
+        here = np.where(other < 0, rng.random(len(s)) < 0.5, rank < rank[other])
+        edges.append(np.column_stack([vi, vj]))
+        counted.append(np.where(here, vi, vj))
+    edges, counted = np.concatenate(edges), np.concatenate(counted)
+    edges.sort(axis=1)
+    edges, first = np.unique(edges, axis=0, return_index=True)  # interior edges appear twice
+    return edges, counted[first]
+
+
 def norm(v):
     return np.linalg.norm(v, axis=-1)
 

@@ -73,7 +73,7 @@ def test_prey_flee_from_predator():
     p = Params(Dphi=0)
     pos = np.array([[0.0, 0.0], [0.0, 1.0], [1.0, 0.5]])
     u = np.tile([1.0, 0.0], (3, 1))
-    pred = np.array([-2.0, 0.0])  # behind and slightly below the school
+    pred = np.array([-2.0, -0.5])  # behind and slightly below the school
     _, new_u = prey_step(pos, u, np.zeros(3), p, np.random.default_rng(0), pred)
     assert new_u[0, 1] > 0  # the closest prey turns away from the predator
 

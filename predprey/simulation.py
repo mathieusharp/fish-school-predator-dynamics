@@ -9,8 +9,8 @@ Each agent is a position and a unit heading vector; speeds are constant.
 """
 import numpy as np
 
-from .geometry import (cluster_labels, delaunay_edges, largest_cluster, norm,
-                       perpendicular, ray_to_alpha_shape, turn, unit)
+from .geometry import (cluster_labels, delaunay_edges, delaunay_edges_counted, largest_cluster,
+                       norm, perpendicular, ray_to_alpha_shape, turn, unit)
 from .params import Params
 
 
@@ -65,8 +65,12 @@ def prey_step(pos, u, alg, p, rng, pred_pos=None):
     n = len(pos)
     vel = p.speed0 * u
     points = pos if pred_pos is None else np.vstack([pos, pred_pos])
-    edges = delaunay_edges(points)
-    i, j = edges[edges[:, 1] < n].T
+    if p.cpp_neighbour_count:
+        edges, counted = delaunay_edges_counted(points, rng)
+    else:
+        edges = delaunay_edges(points)
+    prey_prey = edges[:, 1] < n
+    i, j = edges[prey_prey].T
 
     r = pos[j] - pos[i]
     d = norm(r)
@@ -81,9 +85,9 @@ def prey_step(pos, u, alg, p, rng, pred_pos=None):
     np.add.at(sum_alg, j, -f_alg)
 
     if p.cpp_neighbour_count:
-        # The C++ code divides by a neighbour counter that is incremented for only one
-        # end of each Voronoi edge, chosen by CGAL's edge order. We pick that end at random.
-        owner = np.where(rng.random(len(i)) < 0.5, i, j)
+        # C++: forces are divided by a neighbour counter increased for only one end
+        # of each Voronoi edge (see delaunay_edges_counted), not by the number of neighbours
+        owner = counted[prey_prey]
     else:
         owner = np.concatenate([i, j])  # each prey counts all its neighbours
     count = np.bincount(owner, minlength=n)[:, None]
