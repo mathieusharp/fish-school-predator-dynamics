@@ -9,8 +9,8 @@ Each agent is a position and a unit heading vector; speeds are constant.
 """
 import numpy as np
 
-from .geometry import (cluster_labels, delaunay_edges, largest_cluster, norm, perp,
-                       ray_to_alpha_shape, turn, unit)
+from .geometry import (cluster_labels, delaunay_edges, largest_cluster, norm,
+                       perpendicular, ray_to_alpha_shape, turn, unit)
 from .params import Params
 
 
@@ -55,8 +55,8 @@ def alignment_strengths(p, rng):
 
 def move(pos, u, force, speed, dt, noise=0.0):
     """Turns the heading towards the force (only its perpendicular part counts), then moves."""
-    dphi = (np.sum(force * perp(u), axis=-1) * dt + noise) / speed
-    u = turn(u, dphi)
+    angle = (np.sum(force * perpendicular(u), axis=-1) * dt + noise) / speed
+    u = turn(u, angle)
     return pos + speed * u * dt, u
 
 

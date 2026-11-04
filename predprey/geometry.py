@@ -37,15 +37,15 @@ def unit(v):
     return v / norm(v)[..., None]
 
 
-def perp(u):
+def perpendicular(u):
     """u rotated by +90 degrees."""
     return np.stack([-u[..., 1], u[..., 0]], axis=-1)
 
 
-def turn(u, dphi):
-    """Rotates the unit vectors u by the angles dphi."""
-    dphi = np.asarray(dphi)[..., None]
-    return unit(u * np.cos(dphi) + perp(u) * np.sin(dphi))
+def turn(u, angle):
+    """Rotates the unit vectors u by angle (in radians)."""
+    angle = np.asarray(angle)[..., None]
+    return unit(u * np.cos(angle) + perpendicular(u) * np.sin(angle))
 
 
 def cluster_labels(points, cludist):
@@ -63,11 +63,11 @@ def largest_cluster(points, cludist):
 
 
 def ray_to_alpha_shape(points, origin, u, alpha_radius):
-    """Distance from origin, along u, to the boundary of the alpha shape of points.
+    """Distance from origin, along u, to the boundary of the alpha shape of points (C++: DistP2AlphaShape).
 
-    C++: DistP2AlphaShape (CGAL alpha shape + ray casting). Here the alpha shape
-    is approximated by the Delaunay edges shorter than 2 * alpha_radius; starting
-    from outside the school, the first edge hit is on its boundary.
+    The C++ code uses the exact alpha shape (CGAL); here it is approximated by the
+    Delaunay edges shorter than 2 * alpha_radius. Starting from outside the school,
+    the first edge hit is on its boundary.
     Returns inf if the ray misses the school.
     """
     edges = delaunay_edges(points)
