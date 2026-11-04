@@ -80,9 +80,12 @@ def prey_step(pos, u, alg, p, rng, pred_pos=None):
     np.add.at(sum_alg, i, f_alg)
     np.add.at(sum_alg, j, -f_alg)
 
-    # The C++ code divides by a neighbour counter that is incremented for only one
-    # end of each Voronoi edge, chosen by CGAL's edge order. We pick that end at random.
-    owner = np.where(rng.random(len(i)) < 0.5, i, j)
+    if p.cpp_neighbour_count:
+        # The C++ code divides by a neighbour counter that is incremented for only one
+        # end of each Voronoi edge, chosen by CGAL's edge order. We pick that end at random.
+        owner = np.where(rng.random(len(i)) < 0.5, i, j)
+    else:
+        owner = np.concatenate([i, j])  # each prey counts all its neighbours
     count = np.bincount(owner, minlength=n)[:, None]
     force = np.where(count > 0,
                      (p.rep_strength * sum_dist + alg[:, None] * sum_alg) / np.maximum(count, 1),

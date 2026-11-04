@@ -28,6 +28,7 @@ class Params:
     alg_strength: float = 2.0        # mean alignment strength of the population
     alg_sigma: float = 0.075         # C++: pava_sig, spread of alg_strength between prey
     flee_strength: float = 4.0
+    cpp_neighbour_count: bool = True  # False: average over all neighbours, as in Eq 2 of the paper (issue #2)
 
     # predator
     pred_speed: float = 2.0          # C++: pred_speed0
