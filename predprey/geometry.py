@@ -47,7 +47,8 @@ def delaunay_edges_counted(points, rng):
         return edges, edges[np.arange(len(edges)), rng.integers(0, 2, len(edges))]
     s, nb = tri.simplices.copy(), tri.neighbors.copy()
     p = points[s]
-    clockwise = np.cross(p[:, 1] - p[:, 0], p[:, 2] - p[:, 0]) < 0
+    ab, ac = p[:, 1] - p[:, 0], p[:, 2] - p[:, 0]
+    clockwise = ab[:, 0] * ac[:, 1] - ab[:, 1] * ac[:, 0] < 0  # z of the cross product
     s[clockwise] = s[clockwise][:, [0, 2, 1]]  # CGAL triangles are counter-clockwise
     nb[clockwise] = nb[clockwise][:, [0, 2, 1]]
     rank = rng.permutation(len(s))
