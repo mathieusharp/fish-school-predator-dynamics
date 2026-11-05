@@ -9,6 +9,7 @@ and "polarisation_finale" (surviving prey at the end of the attack). The Python
 runs use the alignment strengths of that file between 0.5 and 5 and write the
 same quantities.
 """
+
 import json
 import sys
 from collections import defaultdict
@@ -25,9 +26,13 @@ def run(args):
     alg, seed = args
     r = simulate(Params(alg_strength=alg), seed=seed)
     u = r["prey_u"][-1]
-    return {"alg_strength": alg, "seed": seed, "dead": len(r["kills"]),
-            "polarisation_finale": float(polarization(u[~np.isnan(u[:, 0])])),
-            "polarization_start": float(r["polarization_start"])}
+    return {
+        "alg_strength": alg,
+        "seed": seed,
+        "dead": len(r["kills"]),
+        "polarisation_finale": float(polarization(u[~np.isnan(u[:, 0])])),
+        "polarization_start": float(r["polarization_start"]),
+    }
 
 
 def summary(rows, key):
@@ -52,11 +57,15 @@ if __name__ == "__main__":
 
     cpp = [r for r in cpp if r["alg_strength"] in algs]
     print("mean ± std over runs")
-    print("alg   | captures C++ | captures Py | start pol. C++ | start pol. Py | final pol. C++ | final pol. Py")
+    print(
+        "alg   | captures C++ | captures Py | start pol. C++ | start pol. Py | final pol. C++ | final pol. Py"
+    )
     cd, pd = summary(cpp, "dead"), summary(py, "dead")
     cs, ps = summary(cpp, "polarization_start"), summary(py, "polarization_start")
     cp, pp = summary(cpp, "polarisation_finale"), summary(py, "polarisation_finale")
     for a in algs:
-        print(f"{a:<5} | {cd[a][0]:5.1f} ± {cd[a][1]:4.1f} | {pd[a][0]:5.1f} ± {pd[a][1]:4.1f}"
-              f" | {cs[a][0]:6.3f} ± {cs[a][1]:5.3f} | {ps[a][0]:6.3f} ± {ps[a][1]:5.3f}"
-              f" | {cp[a][0]:6.3f} ± {cp[a][1]:5.3f} | {pp[a][0]:6.3f} ± {pp[a][1]:5.3f}")
+        print(
+            f"{a:<5} | {cd[a][0]:5.1f} ± {cd[a][1]:4.1f} | {pd[a][0]:5.1f} ± {pd[a][1]:4.1f}"
+            f" | {cs[a][0]:6.3f} ± {cs[a][1]:5.3f} | {ps[a][0]:6.3f} ± {ps[a][1]:5.3f}"
+            f" | {cp[a][0]:6.3f} ± {cp[a][1]:5.3f} | {pp[a][0]:6.3f} ± {pp[a][1]:5.3f}"
+        )

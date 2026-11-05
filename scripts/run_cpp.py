@@ -9,6 +9,7 @@ OUT.jsonl with the keys read by compare_cpp.py and plot_comparison.py.
 Runs are sequential: the C++ code always writes to the same out_xx.h5.
 The C++ seed comes from the clock, so runs cannot be replayed.
 """
+
 import json
 import os
 import subprocess
@@ -25,6 +26,7 @@ def polarization(vel):
 
 def run(alg):
     import SwarmDynByPy as swarmPy  # from CPP_DIR
+
     dic = swarmPy.get_base_params(200, 60)  # equilibration 200, attack 60 time units
     dic["alg_strength"] = alg
     swarmPy.heteroPopulation(dic)
@@ -34,11 +36,14 @@ def run(alg):
     with h5py.File("out_xx.h5", "r") as f:
         part = np.array(f["/part"])  # (frames, N, [x, y, vx, vy, ...])
     pos, vel = part[..., :2], part[..., 2:4]
-    alive = np.any(pos != 0, axis=-1)  # dead prey and prey outside the attacked cluster are at (0, 0)
-    return {"alg_strength": alg,
-            "dead": int(alive[0].sum() - alive[-1].sum()),
-            "polarization_start": polarization(vel[0][alive[0]]),
-            "polarisation_finale": polarization(vel[-1][alive[-1]])}
+    # dead prey and prey outside the attacked cluster are at (0, 0)
+    alive = np.any(pos != 0, axis=-1)
+    return {
+        "alg_strength": alg,
+        "dead": int(alive[0].sum() - alive[-1].sum()),
+        "polarization_start": polarization(vel[0][alive[0]]),
+        "polarisation_finale": polarization(vel[-1][alive[-1]]),
+    }
 
 
 if __name__ == "__main__":

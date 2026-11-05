@@ -3,6 +3,7 @@
 Positions are arrays of shape (n, 2); directions are unit vectors, never angles,
 so that the code can later be extended to 3D.
 """
+
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
@@ -13,7 +14,9 @@ def delaunay_edges(points):
     """Pairs (i, j), i < j, of Voronoi neighbours (= edges of the Delaunay triangulation)."""
     n = len(points)
     if n < 3:
-        return np.array([(i, j) for i in range(n) for j in range(i + 1, n)], dtype=int).reshape(-1, 2)
+        return np.array([(i, j) for i in range(n) for j in range(i + 1, n)], dtype=int).reshape(
+            -1, 2
+        )
     try:
         tri = Delaunay(points)
     except QhullError:  # degenerate configuration

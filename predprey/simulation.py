@@ -7,10 +7,20 @@ ordered on concentric circles, predator following the prey it can catch.
 
 Each agent is a position and a unit heading vector; speeds are constant.
 """
+
 import numpy as np
 
-from .geometry import (cluster_labels, delaunay_edges, delaunay_edges_counted, largest_cluster,
-                       norm, perpendicular, ray_to_alpha_shape, turn, unit)
+from .geometry import (
+    cluster_labels,
+    delaunay_edges,
+    delaunay_edges_counted,
+    largest_cluster,
+    norm,
+    perpendicular,
+    ray_to_alpha_shape,
+    turn,
+    unit,
+)
 from .params import Params
 
 
@@ -27,8 +37,9 @@ def init_school(p, rng):
             n_cap += n_circle
             k = 0
         angle = 2 * np.pi * k / n_circle
-        pos[order[i]] = p.rep_range * circle * np.array([np.cos(angle), np.sin(angle)]) \
-            + 0.8 * p.rep_range * rng.random(2)
+        pos[order[i]] = p.rep_range * circle * np.array(
+            [np.cos(angle), np.sin(angle)]
+        ) + 0.8 * p.rep_range * rng.random(2)
         k += 1
     u = np.tile([np.cos(theta), np.sin(theta)], (p.N, 1))
     return pos, u
@@ -91,9 +102,9 @@ def prey_step(pos, u, alg, p, rng, pred_pos=None):
     else:
         owner = np.concatenate([i, j])  # each prey counts all its neighbours
     count = np.bincount(owner, minlength=n)[:, None]
-    force = np.where(count > 0,
-                     (p.rep_strength * sum_dist + alg[:, None] * sum_alg) / np.maximum(count, 1),
-                     0.0)
+    force = np.where(
+        count > 0, (p.rep_strength * sum_dist + alg[:, None] * sum_alg) / np.maximum(count, 1), 0.0
+    )
 
     if pred_pos is not None:
         fleeing = edges[edges[:, 1] == n, 0]
@@ -180,8 +191,12 @@ def simulate(p=None, seed=None):
 
         # catch probability (C++: Fitness)
         in_reach = d < p.kill_range
-        p_catch = np.where(in_reach, (p.kill_range - d) / p.kill_range, 0.0) \
-            / max(in_reach.sum(), 1) * p.kill_rate * p.dt
+        p_catch = (
+            np.where(in_reach, (p.kill_range - d) / p.kill_range, 0.0)
+            / max(in_reach.sum(), 1)
+            * p.kill_rate
+            * p.dt
+        )
         caught = rng.random(len(nn)) < p_catch
 
         # predator: approach a cluster, then hunt the prey it can catch (C++: MovePredator)
@@ -210,6 +225,11 @@ def simulate(p=None, seed=None):
             active[k] = False
 
     result = {key: np.array(val) for key, val in frames.items()}
-    result.update(kills=np.array(kills).reshape(-1, 2), alg=alg, cluster_size=len(cluster),
-                  polarization_start=polarization_start, seed=seed)
+    result.update(
+        kills=np.array(kills).reshape(-1, 2),
+        alg=alg,
+        cluster_size=len(cluster),
+        polarization_start=polarization_start,
+        seed=seed,
+    )
     return result

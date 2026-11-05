@@ -1,8 +1,15 @@
 """Tests of the predprey package. Run from the repository root: python3 -m pytest"""
+
 import numpy as np
 
-from predprey.geometry import (cluster_labels, delaunay_edges, largest_cluster, norm,
-                               ray_to_alpha_shape, turn)
+from predprey.geometry import (
+    cluster_labels,
+    delaunay_edges,
+    largest_cluster,
+    norm,
+    ray_to_alpha_shape,
+    turn,
+)
 from predprey.params import Params
 from predprey.simulation import alignment_strengths, init_school, prey_step, simulate
 

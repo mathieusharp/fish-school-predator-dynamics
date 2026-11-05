@@ -20,13 +20,12 @@ We reimplement the model in Python and reproduce its main result. We then improv
 
 ## Running the original C++ code
 
-To read the reference implementation and compare our Python model with it. Commands are run from the repository root. `local/` is ignored by git.
+To read the reference implementation and compare our Python model with it.
 
 ```bash
 sudo apt install libhdf5-dev libgsl-dev libcgal-dev libgmp-dev libboost-system-dev libboost-thread-dev
 pip install h5py matplotlib
 git clone https://github.com/PaPeK/PredatorPrey.git local/PredatorPrey
-# CGAL 5 is header-only, so -lCGAL is removed from the default link flags
 make -C local/PredatorPrey LFLAGS="-lgsl -lgslcblas -lm -lgmp -lboost_system -lboost_thread"
 ```
 
