@@ -40,6 +40,15 @@ python3 scripts/plot_comparison.py results/cpp.jsonl results/py.jsonl results/co
 
 C++ runs cannot be reproduced because the seed comes from the clock, so we compare means instead.
 
+## Reproducing the main result
+
+Capture rate and polarization against alignment strength, with the parameters of table S1 of the paper (Fig 2 at D = 0.5). One run takes about 40 s; runs are spread over all cores (about 1 h for the command below on 8 cores) and an interrupted sweep restarts where it stopped.
+
+```bash
+python3 -m scripts.sweep_alignment results/sweep.jsonl 0:1.6:0.1 40   # alignment strengths 0 to 1.6, 40 runs each
+python3 -m scripts.plot_sweep results/sweep.jsonl results/sweep.png    # prints a table and saves the figure
+```
+
 ## Team (Group F)
 
 | Name | GitHub |
