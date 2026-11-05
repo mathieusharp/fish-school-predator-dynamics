@@ -71,6 +71,11 @@ def move(pos, u, force, speed, dt, noise=0.0):
     return pos + speed * u * dt, u
 
 
+def sum_by(index, values, n):
+    """Sum of the vectors values[k] for each index[k] in range(n) (faster than np.add.at)."""
+    return np.column_stack([np.bincount(index, values[:, d], n) for d in range(values.shape[1])])
+
+
 def prey_step(pos, u, alg, p, rng, pred_pos=None):
     """One Euler step for all prey. With a predator, its Voronoi neighbours flee."""
     n = len(pos)
@@ -88,19 +93,16 @@ def prey_step(pos, u, alg, p, rng, pred_pos=None):
     # distance regulation: repulsion below rep_range, attraction above (C++: SFM_DRA)
     f_dist = -np.tanh(p.rep_steepness * (d - p.rep_range))[:, None] * r / d[:, None]
     f_alg = vel[j] - vel[i]
-    sum_dist = np.zeros((n, 2))
-    sum_alg = np.zeros((n, 2))
-    np.add.at(sum_dist, i, f_dist)
-    np.add.at(sum_dist, j, -f_dist)
-    np.add.at(sum_alg, i, f_alg)
-    np.add.at(sum_alg, j, -f_alg)
+    both = np.concatenate([i, j])  # each edge acts on its two ends, with opposite signs
+    sum_dist = sum_by(both, np.concatenate([f_dist, -f_dist]), n)
+    sum_alg = sum_by(both, np.concatenate([f_alg, -f_alg]), n)
 
     if p.cpp_neighbour_count:
         # C++: forces are divided by a neighbour counter increased for only one end
         # of each Voronoi edge (see delaunay_edges_counted), not by the number of neighbours
         owner = counted[prey_prey]
     else:
-        owner = np.concatenate([i, j])  # each prey counts all its neighbours
+        owner = both  # each prey counts all its neighbours
     count = np.bincount(owner, minlength=n)[:, None]
     force = np.where(
         count > 0, (p.rep_strength * sum_dist + alg[:, None] * sum_alg) / np.maximum(count, 1), 0.0

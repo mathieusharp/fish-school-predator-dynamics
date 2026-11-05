@@ -29,7 +29,16 @@ def delaunay_edges(points):
     s = tri.simplices
     edges = np.concatenate([s[:, [0, 1]], s[:, [1, 2]], s[:, [2, 0]]])
     edges.sort(axis=1)
-    return np.unique(edges, axis=0)
+    return edges[unique_edges(edges, n)]
+
+
+def unique_edges(edges, n):
+    """Index of the first occurrence of each edge (i, j), i < j, in lexicographic order.
+
+    Same result as np.unique(edges, axis=0, return_index=True)[1], but much faster:
+    each edge is encoded as one integer i * n + j (issue #3).
+    """
+    return np.unique(edges[:, 0].astype(np.int64) * n + edges[:, 1], return_index=True)[1]
 
 
 def delaunay_edges_counted(points, rng):
@@ -63,8 +72,8 @@ def delaunay_edges_counted(points, rng):
         counted.append(np.where(here, vi, vj))
     edges, counted = np.concatenate(edges), np.concatenate(counted)
     edges.sort(axis=1)
-    edges, first = np.unique(edges, axis=0, return_index=True)  # interior edges appear twice
-    return edges, counted[first]
+    first = unique_edges(edges, len(points))  # interior edges appear twice
+    return edges[first], counted[first]
 
 
 def norm(v):

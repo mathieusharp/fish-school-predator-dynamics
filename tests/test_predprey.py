@@ -9,6 +9,7 @@ from predprey.geometry import (
     norm,
     ray_to_alpha_shape,
     turn,
+    unique_edges,
 )
 from predprey.params import Params
 from predprey.simulation import alignment_strengths, init_school, prey_step, simulate
@@ -21,6 +22,14 @@ def test_delaunay_edges_square_with_centre():
     assert len(np.unique(edges, axis=0)) == len(edges)
     # the centre is a Voronoi neighbour of the four corners
     assert {tuple(e) for e in edges if 4 in e} == {(0, 4), (1, 4), (2, 4), (3, 4)}
+
+
+def test_unique_edges_matches_numpy():
+    rng = np.random.default_rng(0)
+    edges = np.sort(rng.integers(0, 50, (500, 2)), axis=1)
+    expected, first = np.unique(edges, axis=0, return_index=True)
+    assert np.array_equal(unique_edges(edges, 50), first)
+    assert np.array_equal(edges[unique_edges(edges, 50)], expected)
 
 
 def test_turn_rotates_and_keeps_unit_length():
