@@ -30,7 +30,7 @@ pred = ax.quiver(X[0, 0], X[0, 1], V[0, 0], V[0, 1], color="red", scale=40)  # x
 
 
 def update(f):
-    """Moves the arrows to frame f and centres the view on the school"""
+    """Moves the arrows to frame f and zooms so that all prey and the predator stay in view"""
     prey.set_offsets(P[f])
     prey.set_UVC(U[f, :, 0], U[f, :, 1])
     pred.set_offsets(X[f])
