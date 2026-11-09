@@ -7,8 +7,10 @@ from predprey.geometry import (
     delaunay_edges,
     largest_cluster,
     norm,
+    perpendicular,
     ray_to_alpha_shape,
     turn,
+    turn_towards,
     unique_edges,
 )
 from predprey.params import Params
@@ -24,6 +26,15 @@ def test_delaunay_edges_square_with_centre():
     assert {tuple(e) for e in edges if 4 in e} == {(0, 4), (1, 4), (2, 4), (3, 4)}
 
 
+def test_delaunay_edges_3d_cube_with_centre():
+    corners = np.array([[x, y, z] for x in (0, 2) for y in (0, 2) for z in (0, 2)], dtype=float)
+    points = np.vstack([corners, [1, 1, 1]])
+    edges = delaunay_edges(points)
+    assert (edges[:, 0] < edges[:, 1]).all()
+    # the centre is a Voronoi neighbour of the eight corners
+    assert {tuple(e) for e in edges if 8 in e} == {(i, 8) for i in range(8)}
+
+
 def test_unique_edges_matches_numpy():
     rng = np.random.default_rng(0)
     edges = np.sort(rng.integers(0, 50, (500, 2)), axis=1)
@@ -37,6 +48,15 @@ def test_turn_rotates_and_keeps_unit_length():
     rotated = turn(u, [np.pi / 2, np.pi])
     assert np.allclose(rotated, [[0, 1], [0, -1]])
     assert np.allclose(norm(rotated), 1)
+
+
+def test_turn_towards_is_turn_in_2d_and_works_in_3d():
+    u = np.array([[1.0, 0.0], [0.6, 0.8]])
+    angle = np.array([0.3, -1.2])
+    assert np.allclose(turn_towards(u, angle[:, None] * perpendicular(u)), turn(u, angle))
+    u3 = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
+    w = np.array([[0.0, 0.0, np.pi / 2], [0.0, 0.0, 0.0]])  # quarter turn up, no turn
+    assert np.allclose(turn_towards(u3, w), [[0, 0, 1], [0, 0, 1]])
 
 
 def test_clusters_two_groups():
@@ -64,6 +84,30 @@ def test_init_school():
     assert pos.shape == (100, 2)
     assert np.allclose(u, u[0])  # everyone heads the same way
     assert np.isclose(norm(u[0]), 1)
+
+
+def test_init_school_3d():
+    p = Params(dim=3, N=400)
+    pos, u = init_school(p, np.random.default_rng(0))
+    assert pos.shape == (400, 3)
+    assert np.allclose(u, u[0])
+    assert np.isclose(norm(u[0]), 1)
+    assert len(largest_cluster(pos, p.cludist)) == 400  # one compact school
+
+
+def test_prey_step_3d():
+    p = Params(dim=3, cpp_neighbour_count=False, Dphi=0)
+    # two prey closer than rep_range, side by side: they move apart in 3D too
+    pos = np.array([[0.0, 0.0, 0.0], [0.0, 0.5, 0.0]])
+    u = np.tile([1.0, 0.0, 0.0], (2, 1))
+    new_pos, new_u = prey_step(pos, u, np.full(2, 2.0), p, np.random.default_rng(0))
+    assert new_pos.shape == (2, 3)
+    assert norm(new_pos[1] - new_pos[0]) > 0.5
+    assert np.allclose(norm(new_u), 1)
+    # with noise, headings stay unit vectors
+    p.Dphi = 0.5
+    _, new_u = prey_step(pos, u, np.full(2, 2.0), p, np.random.default_rng(0))
+    assert np.allclose(norm(new_u), 1)
 
 
 def test_alignment_strengths():

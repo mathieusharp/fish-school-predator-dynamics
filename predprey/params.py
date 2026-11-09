@@ -12,6 +12,7 @@ import numpy as np
 @dataclass
 class Params:
     # simulation
+    dim: int = 2  # 2 as in the paper, or 3 (issue #10)
     N: int = 400
     dt: float = 0.02
     output: float = 0.2  # time between two recorded frames
@@ -30,7 +31,7 @@ class Params:
     alg_sigma: float = 0.075  # C++: pava_sig, spread of alg_strength between prey
     flee_strength: float = 4.0
     cpp_neighbour_count: bool = (
-        True  # False: average over all neighbours, as in Eq 2 of the paper (issue #2)
+        True  # False: average over all neighbours, as in Eq 2 of the paper (issue #2). 2D only
     )
 
     # predator

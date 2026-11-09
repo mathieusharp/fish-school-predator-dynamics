@@ -17,15 +17,36 @@ from .geometry import (
     largest_cluster,
     norm,
     perpendicular,
+    perpendicular_part,
     ray_to_alpha_shape,
     turn,
+    turn_towards,
     unit,
 )
 from .params import Params
 
 
 def init_school(p, rng):
-    """Prey on concentric circles with a small random shift, all heading the same way (C++: IC=3)."""
+    """Prey on concentric circles with a small random shift, all heading the same way (C++: IC=3).
+
+    In 3D, concentric spheres with about one prey per unit area, in a random direction.
+    """
+    if p.dim == 3:
+        pos, radius, n_done = [], 1, 0
+        while n_done < p.N:
+            m = min(max(4, round(4 * np.pi * radius**2)), p.N - n_done)
+            # points spread evenly on the sphere (Fibonacci lattice)
+            k = np.arange(m) + 0.5
+            z = 1 - 2 * k / m
+            phi = np.pi * (1 + 5**0.5) * k
+            r_xy = np.sqrt(1 - z**2)
+            shell = np.column_stack([r_xy * np.cos(phi), r_xy * np.sin(phi), z])
+            pos.append(p.rep_range * radius * shell)
+            n_done += m
+            radius += 1
+        pos = np.concatenate(pos)[rng.permutation(p.N)] + 0.8 * p.rep_range * rng.random((p.N, 3))
+        u = np.tile(unit(rng.standard_normal(3)), (p.N, 1))
+        return pos, u
     theta = 2 * np.pi * rng.random()
     order = rng.permutation(p.N)
     pos = np.zeros((p.N, 2))
@@ -65,9 +86,15 @@ def alignment_strengths(p, rng):
 
 
 def move(pos, u, force, speed, dt, noise=0.0):
-    """Turns the heading towards the force (only its perpendicular part counts), then moves."""
-    angle = (np.sum(force * perpendicular(u), axis=-1) * dt + noise) / speed
-    u = turn(u, angle)
+    """Turns the heading towards the force (only its perpendicular part counts), then moves.
+
+    noise: random turn, one angle per agent in 2D, one vector perpendicular to u in 3D.
+    """
+    if u.shape[-1] == 2:
+        angle = (np.sum(force * perpendicular(u), axis=-1) * dt + noise) / speed
+        u = turn(u, angle)
+    else:  # same rule: the turn is a vector perpendicular to u instead of a signed angle
+        u = turn_towards(u, (perpendicular_part(force, u) * dt + noise) / speed)
     return pos + speed * u * dt, u
 
 
@@ -78,10 +105,11 @@ def sum_by(index, values, n):
 
 def prey_step(pos, u, alg, p, rng, pred_pos=None):
     """One Euler step for all prey. With a predator, its Voronoi neighbours flee."""
-    n = len(pos)
+    n, dim = pos.shape
     vel = p.speed0 * u
     points = pos if pred_pos is None else np.vstack([pos, pred_pos])
-    if p.cpp_neighbour_count:
+    cpp_count = p.cpp_neighbour_count and dim == 2  # no C++ code to follow in 3D
+    if cpp_count:
         edges, counted = delaunay_edges_counted(points, rng)
     else:
         edges = delaunay_edges(points)
@@ -97,7 +125,7 @@ def prey_step(pos, u, alg, p, rng, pred_pos=None):
     sum_dist = sum_by(both, np.concatenate([f_dist, -f_dist]), n)
     sum_alg = sum_by(both, np.concatenate([f_alg, -f_alg]), n)
 
-    if p.cpp_neighbour_count:
+    if cpp_count:
         # C++: forces are divided by a neighbour counter increased for only one end
         # of each Voronoi edge (see delaunay_edges_counted), not by the number of neighbours
         owner = counted[prey_prey]
@@ -112,12 +140,17 @@ def prey_step(pos, u, alg, p, rng, pred_pos=None):
         fleeing = edges[edges[:, 1] == n, 0]
         force[fleeing] += p.flee_strength * unit(pos[fleeing] - pred_pos)
 
-    noise = np.sqrt(2 * p.Dphi * p.dt) * rng.standard_normal(n)
+    if dim == 2:
+        noise = np.sqrt(2 * p.Dphi * p.dt) * rng.standard_normal(n)
+    else:  # each of the two directions perpendicular to the heading gets the 2D noise
+        noise = perpendicular_part(np.sqrt(2 * p.Dphi * p.dt) * rng.standard_normal((n, 3)), u)
     return move(pos, u, force, p.speed0, p.dt, noise)
 
 
 def create_predator(pos, cluster, heading, p, rng):
     """Places the predator pred_radius away from the school, at a random angle (C++: CreatePredator)."""
+    if len(heading) != 2:
+        raise NotImplementedError("predator in 3D, see issue #10")
     direction = np.arctan2(heading[1], heading[0])
     side = 1 if rng.uniform(-p.pred_angle_noise, p.pred_angle_noise) >= 0 else -1
     angle = direction + side * (p.pred_angle + rng.uniform(-p.pred_angle_noise, p.pred_angle_noise))
@@ -150,7 +183,7 @@ def simulate(p=None, seed=None):
     best = None
     for _ in range(p.max_restarts):
         pos, u = init_school(p, rng)
-        heading = np.zeros(2)
+        heading = np.zeros(p.dim)
         for s in range(n_pred):
             if s == n_memory:
                 cluster = largest_cluster(pos, p.cludist)

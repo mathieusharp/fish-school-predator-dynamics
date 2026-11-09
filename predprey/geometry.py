@@ -1,8 +1,9 @@
 """Neighbours, clusters and other geometric helpers.
 
-Positions are arrays of shape (n, 2); directions are unit vectors, never angles,
-so that the code can later be extended to 3D.
+Positions are arrays of shape (n, 2) or (n, 3); directions are unit vectors, never angles.
 """
+
+from itertools import combinations
 
 import numpy as np
 from scipy.sparse import coo_matrix
@@ -12,8 +13,8 @@ from scipy.spatial import Delaunay, QhullError, cKDTree
 
 def delaunay_edges(points):
     """Pairs (i, j), i < j, of Voronoi neighbours (= edges of the Delaunay triangulation)."""
-    n = len(points)
-    if n < 3:
+    n, dim = points.shape
+    if n <= dim:  # too few points for a triangulation: all are neighbours
         return np.array([(i, j) for i in range(n) for j in range(i + 1, n)], dtype=int).reshape(
             -1, 2
         )
@@ -26,8 +27,8 @@ def delaunay_edges(points):
             direction = points[-1] - points[0]
             order = np.argsort(points @ direction)
             return np.sort(np.column_stack([order[:-1], order[1:]]), axis=1)
-    s = tri.simplices
-    edges = np.concatenate([s[:, [0, 1]], s[:, [1, 2]], s[:, [2, 0]]])
+    s = tri.simplices  # triangles in 2D, tetrahedra in 3D
+    edges = np.concatenate([s[:, [a, b]] for a, b in combinations(range(dim + 1), 2)])
     edges.sort(axis=1)
     return edges[unique_edges(edges, n)]
 
@@ -93,6 +94,21 @@ def turn(u, angle):
     """Rotates the unit vectors u by angle (in radians)."""
     angle = np.asarray(angle)[..., None]
     return unit(u * np.cos(angle) + perpendicular(u) * np.sin(angle))
+
+
+def perpendicular_part(v, u):
+    """Part of the vectors v perpendicular to the unit vectors u."""
+    return v - np.sum(v * u, axis=-1, keepdims=True) * u
+
+
+def turn_towards(u, w):
+    """Rotates the unit vectors u by the angle |w| towards w (w perpendicular to u, any dimension).
+
+    In 2D, with w = angle * perpendicular(u), this is turn(u, angle).
+    """
+    angle = norm(w)[..., None]
+    direction = np.divide(w, angle, out=np.zeros_like(w), where=angle > 0)
+    return unit(u * np.cos(angle) + direction * np.sin(angle))
 
 
 def cluster_labels(points, cludist):
