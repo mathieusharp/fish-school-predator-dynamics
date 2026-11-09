@@ -1,3 +1,26 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "predprey"
+version = "0.1.0"
+description = "Python reimplementation of the predator-prey model of Klamser & Romanczuk (2021)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.23",
+    "scipy>=1.10",
+    "matplotlib>=3.6",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff==0.17.4"]  # ruff pinned: a new release can change the formatting
+cpp = ["h5py"]  # only for scripts/run_cpp.py
+
+[tool.setuptools]
+packages = ["predprey"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
