@@ -8,6 +8,10 @@ Klamser & Romanczuk (2021). Collective predator evasion: Putting the criticality
 
 The paper simulates a 2D school of fish attacked by a predator. The predator catches the fewest fish when the school is halfway between disordered and fully aligned.
 
+![A predator (red) attacking a school of 400 prey](docs/run.gif)
+
+*One run of our Python model (alignment strength 2, seed 1), made with `python3 -m scripts.animate`.*
+
 ## Project description
 
 We reimplement the model in Python and reproduce its main result. We then improve the predator with one behavioural change, such as its attack angle, and also test whether the result holds in 3D. Finally, we turn the predator into a shepherd that steers the school without breaking it apart, trying to adapt to fish the model of [Strömbom et al. (2014)](https://doi.org/10.1098/rsif.2014.0719) (a single sheepdog herding a flock of sheep).
