@@ -8,6 +8,8 @@ ordered on concentric circles, predator following the prey it can catch.
 Each agent is a position and a unit heading vector; speeds are constant.
 """
 
+from dataclasses import replace
+
 import numpy as np
 
 from .geometry import (
@@ -137,13 +139,16 @@ def polarization(u):
 
 
 def simulate(p=None, seed=None):
-    """Runs one simulation: equilibration, then attack. Returns a dict of results."""
+    """Runs one simulation: equilibration, then attack. Returns a dict of results.
+
+    With p.control, the same school is also attacked without fleeing (control school of
+    the paper, issue #4); its kills are in result["kills_nf"].
+    """
     p = p or Params()
-    rng = np.random.default_rng(seed)
+    seq = np.random.SeedSequence(seed)
+    rng = np.random.default_rng(seq)  # same stream as default_rng(seed)
     n_memory = round((p.pred_time - p.pred_memory) / p.dt)
     n_pred = round(p.pred_time / p.dt)
-    n_attack = round(p.attack_time / p.dt)
-    every = round(p.output / p.dt)
 
     # EQUILIBRATION, restarted if the school has split (C++: MinCluster)
     alg = alignment_strengths(p, rng)
@@ -164,10 +169,41 @@ def simulate(p=None, seed=None):
     pos, u, cluster, heading = best
     polarization_start = polarization(u[cluster])
 
-    # ATTACK, only on the largest cluster (C++: split_notInCluster)
-    active = np.zeros(p.N, dtype=bool)
-    active[cluster] = True
     pred_x, pred_u = create_predator(pos, cluster, heading, p, rng)
+    if p.control:
+        twin = pos.copy(), u.copy()  # attack() moves the prey in place
+    kills, frames = attack(pos, u, alg, cluster, pred_x, pred_u, p, rng)
+
+    result = {key: np.array(val) for key, val in frames.items()}
+    result.update(
+        kills=kills,
+        alg=alg,
+        cluster_size=len(cluster),
+        polarization_start=polarization_start,
+        seed=seed,
+    )
+    if p.control:
+        # C++: dummy. Same prey and predator when the predator appears, but the prey do not
+        # flee (they still see the predator as a Voronoi neighbour). Its own random stream
+        # leaves the attacked school unchanged, which the C++ code does not.
+        twin_rng = np.random.default_rng(seq.spawn(1)[0])
+        twin_p = replace(p, flee_strength=0.0)
+        result["kills_nf"], _ = attack(
+            *twin, alg, cluster, pred_x, pred_u, twin_p, twin_rng, record=False
+        )
+    return result
+
+
+def attack(pos, u, alg, cluster, pred_x, pred_u, p, rng, record=True):
+    """Attack on the largest cluster only; the other prey are left out (C++: split_notInCluster).
+
+    pos and u are changed in place. Returns the kills, one (time, prey index) row per
+    capture, and the frames (empty lists if not record).
+    """
+    n_attack = round(p.attack_time / p.dt)
+    every = round(p.output / p.dt)
+    active = np.zeros(len(pos), dtype=bool)
+    active[cluster] = True
     hunting = False
     pred_cluster = cluster
     kills = []
@@ -175,7 +211,7 @@ def simulate(p=None, seed=None):
 
     for s in range(n_attack):
         idx = np.flatnonzero(active)
-        if s % every == 0:
+        if record and s % every == 0:
             frames["t"].append(s * p.dt)
             frames["prey_pos"].append(np.where(active[:, None], pos, np.nan))
             frames["prey_u"].append(np.where(active[:, None], u, np.nan))
@@ -226,12 +262,4 @@ def simulate(p=None, seed=None):
             kills.append((s * p.dt, k))
             active[k] = False
 
-    result = {key: np.array(val) for key, val in frames.items()}
-    result.update(
-        kills=np.array(kills).reshape(-1, 2),
-        alg=alg,
-        cluster_size=len(cluster),
-        polarization_start=polarization_start,
-        seed=seed,
-    )
-    return result
+    return np.array(kills).reshape(-1, 2), frames

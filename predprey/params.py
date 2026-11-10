@@ -19,6 +19,7 @@ class Params:
     attack_time: float = 60.0  # C++: record_time
     min_cluster: float = 0.9  # restart if the largest cluster is smaller (fraction of N)
     max_restarts: int = 3  # C++: maxiter
+    control: bool = False  # also attack a non-fleeing copy of the school (C++: dummy, issue #4)
 
     # prey
     speed0: float = 1.0

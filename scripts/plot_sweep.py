@@ -5,6 +5,9 @@ Usage, from the repository root:
 
 SWEEP.jsonl is written by scripts/sweep_alignment.py. The transition is placed at the
 maximum of the susceptibility chi = N * variance of the polarization over runs.
+If the sweep has the control school (issue #4), the figure also shows its capture rate
+gamma_c,NF and the escape ratio R_esc = 1 - gamma_c / gamma_c,NF of Fig 2D, with a
+bootstrap over runs (each run and its control share the same starting state).
 """
 
 import json
@@ -26,9 +29,17 @@ def load(path):
     data = defaultdict(lambda: defaultdict(list))
     for line in open(path):
         r = json.loads(line)
-        for key in ("capture_rate", "polarization_start", "cluster_size"):
-            data[key][r["alg_strength"]].append(r[key])
+        for key in ("capture_rate", "capture_rate_nf", "polarization_start", "cluster_size"):
+            if key in r:
+                data[key][r["alg_strength"]].append(r[key])
     return data
+
+
+def escape_ratio(rate, rate_nf, n_boot=2000):
+    """R_esc = 1 - mean(gamma_c) / mean(gamma_c,NF), and its bootstrap standard error."""
+    boot = np.random.default_rng(0).integers(len(rate), size=(n_boot, len(rate)))
+    samples = 1 - rate[boot].mean(axis=1) / rate_nf[boot].mean(axis=1)
+    return 1 - rate.mean() / rate_nf.mean(), samples.std(ddof=1)
 
 
 def style(ax, ylabel):
@@ -51,20 +62,51 @@ if __name__ == "__main__":
     chi = np.array([n * np.var(p, ddof=1) for n, p in zip(size, pol, strict=True)])
     transition = algs[np.argmax(chi)]
     lowest = algs[np.argmin([r.mean() for r in rate])]
+    # control school only if every run has it, so that runs and controls stay paired
+    control = all(
+        len(data["capture_rate_nf"][a]) == len(r) for a, r in zip(algs, rate, strict=True)
+    )
+    if control:
+        rate_nf = [np.array(data["capture_rate_nf"][a]) for a in algs]
+        esc = np.array([escape_ratio(r, n) for r, n in zip(rate, rate_nf, strict=True)])
 
-    print("alg   | runs | capture rate      | polarization  | chi")
-    for a, r, p, c in zip(algs, rate, pol, chi, strict=True):
+    print(
+        "alg   | runs | capture rate      | polarization  | chi    " + control * "| no flee | R_esc"
+    )
+    for k, (a, r, p, c) in enumerate(zip(algs, rate, pol, chi, strict=True)):
         se = r.std(ddof=1) / np.sqrt(len(r))
-        print(
-            f"{a:<5} | {len(r):4} | {r.mean():.4f} ± {se:.4f} | {p.mean():.3f} ± {p.std():.3f} | {c:6.2f}"
-        )
+        line = f"{a:<5} | {len(r):4} | {r.mean():.4f} ± {se:.4f} | {p.mean():.3f} ± {p.std():.3f} | {c:6.2f}"
+        if control:
+            line += f" | {rate_nf[k].mean():.4f}  | {esc[k, 0]:.3f} ± {esc[k, 1]:.3f}"
+        print(line)
     print(f"susceptibility maximum at {transition:g}, lowest capture rate at {lowest:g}")
+    if control:
+        print(f"highest escape ratio at {algs[np.argmax(esc[:, 0])]:g}")
 
-    fig, axes = plt.subplots(3, 1, figsize=(6.5, 8), sharex=True, facecolor=SURFACE)
+    n_panels = 4 if control else 3
+    fig, axes = plt.subplots(
+        n_panels, 1, figsize=(6.5, 2.7 * n_panels), sharex=True, facecolor=SURFACE
+    )
     se = [r.std(ddof=1) / np.sqrt(len(r)) for r in rate]
     axes[0].errorbar(
         algs, [r.mean() for r in rate], yerr=se, color=ORANGE, marker="o", ms=5, lw=2, capsize=3
     )
+    if control:
+        se_nf = [r.std(ddof=1) / np.sqrt(len(r)) for r in rate_nf]
+        axes[0].errorbar(
+            algs,
+            [r.mean() for r in rate_nf],
+            yerr=se_nf,
+            color=MUTED,
+            marker="s",
+            ms=4,
+            lw=1.5,
+            ls="--",
+            capsize=3,
+            label="control school (no fleeing)",
+        )
+        axes[0].plot([], [], color=ORANGE, marker="o", lw=2, label="fleeing school")
+        axes[0].legend(fontsize=7, frameon=False)
     axes[0].set_title("Capture rate (captures per time unit)", fontsize=10, loc="left", color=INK)
     style(axes[0], "capture rate γc")
     axes[1].errorbar(
@@ -84,7 +126,16 @@ if __name__ == "__main__":
         "Susceptibility (N × variance of Φ over runs)", fontsize=10, loc="left", color=INK
     )
     style(axes[2], "χ")
-    axes[2].set_xlabel("alignment strength μ_alg", color=MUTED)
+    if control:
+        axes[3].errorbar(
+            algs, esc[:, 0], yerr=esc[:, 1], color=ORANGE, marker="o", ms=5, lw=2, capsize=3
+        )
+        axes[3].set_title(
+            "Escape ratio R_esc = 1 − γc / γc,NF (Fig 2D)", fontsize=10, loc="left", color=INK
+        )
+        style(axes[3], "R_esc")
+        axes[3].axhline(0, color=MUTED, lw=1)
+    axes[-1].set_xlabel("alignment strength μ_alg", color=MUTED)
     for ax in axes:
         ax.axvline(transition, color="#c03fc0", lw=1.5, ls="-.")
         ax.axvline(PAPER_TRANSITION, color=MUTED, lw=1, ls=":")
@@ -108,7 +159,8 @@ if __name__ == "__main__":
     fig.text(
         0.01,
         0.01,
-        f"Mean ± standard error ({n_runs}+ runs per point; polarization: ± standard deviation). "
+        f"Mean ± standard error ({n_runs}+ runs per point; polarization: ± standard deviation; "
+        "R_esc: bootstrap over runs). "
         "N = 400, D = 0.5, parameters of table S1.",
         fontsize=7,
         color=MUTED,
