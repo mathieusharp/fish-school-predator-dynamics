@@ -11,6 +11,7 @@ Each agent is a position and a unit heading vector; speeds are constant.
 from dataclasses import replace
 
 import numpy as np
+from scipy.spatial import cKDTree
 
 from .geometry import (
     cluster_labels,
@@ -138,6 +139,12 @@ def polarization(u):
     return norm(u.mean(axis=0))
 
 
+def nn_distance(pos):
+    """Mean distance from each prey to its nearest neighbour (inset of Fig 2C of the paper)."""
+    d, _ = cKDTree(pos).query(pos, k=2)  # k=1 is the prey itself
+    return d[:, 1].mean()
+
+
 def simulate(p=None, seed=None):
     """Runs one simulation: equilibration, then attack. Returns a dict of results.
 
@@ -168,6 +175,7 @@ def simulate(p=None, seed=None):
             break
     pos, u, cluster, heading = best
     polarization_start = polarization(u[cluster])
+    nn_distance_start = nn_distance(pos[cluster])
 
     pred_x, pred_u = create_predator(pos, cluster, heading, p, rng)
     if p.control:
@@ -180,6 +188,7 @@ def simulate(p=None, seed=None):
         alg=alg,
         cluster_size=len(cluster),
         polarization_start=polarization_start,
+        nn_distance_start=nn_distance_start,
         seed=seed,
     )
     if p.control:

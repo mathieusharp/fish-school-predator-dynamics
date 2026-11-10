@@ -10,7 +10,8 @@ interrupted sweep can be restarted with the same command: finished runs are skip
 Run i of every alignment strength uses seed i.
 
 Each run also attacks a non-fleeing copy of the school (control school, issue #4), which
-gives the escape ratio of Fig 2D. Files written before issue #4 have no control captures:
+gives the escape ratio of Fig 2D, and records the mean nearest-neighbour distance when the
+predator appears (inset of Fig 2C). Files written by older versions lack these keys:
 write to a new file rather than completing them.
 """
 
@@ -47,6 +48,7 @@ def run(args):
         "captures_nf": len(r["kills_nf"]),  # same school, not fleeing (issue #4)
         "capture_rate_nf": len(r["kills_nf"]) / p.attack_time,  # gamma_c,NF
         "polarization_start": float(r["polarization_start"]),
+        "nn_distance_start": float(r["nn_distance_start"]),  # inset of Fig 2C
         "cluster_size": r["cluster_size"],
     }
 
@@ -58,8 +60,8 @@ if __name__ == "__main__":
     if os.path.exists(out_file):
         for line in open(out_file):
             r = json.loads(line)
-            if "captures_nf" not in r:
-                sys.exit(f"{out_file} was written without the control school: use a new file")
+            if "captures_nf" not in r or "nn_distance_start" not in r:
+                sys.exit(f"{out_file} was written by an older version: use a new file")
             done.add((r["alg_strength"], r["seed"]))
     todo = [(a, s) for s in range(n_runs) for a in algs if (a, s) not in done]
     print(f"{len(todo)} runs to do, {len(done)} already in {out_file}")

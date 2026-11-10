@@ -14,7 +14,14 @@ from predprey.geometry import (
     unique_edges,
 )
 from predprey.params import Params
-from predprey.simulation import alignment_strengths, attack, init_school, prey_step, simulate
+from predprey.simulation import (
+    alignment_strengths,
+    attack,
+    init_school,
+    nn_distance,
+    prey_step,
+    simulate,
+)
 
 
 def test_delaunay_edges_square_with_centre():
@@ -135,3 +142,10 @@ def test_control_school_starts_when_the_predator_appears_and_does_not_flee():
     )
     assert np.array_equal(kills, r["kills_nf"])
     assert frames["t"] == []
+
+
+def test_nn_distance():
+    grid = 2.0 * np.array([[i, j] for i in range(3) for j in range(3)], dtype=float)
+    assert np.isclose(nn_distance(grid), 2.0)
+    r = simulate(Params(N=50, pred_time=2, attack_time=1), seed=0)
+    assert 0 < r["nn_distance_start"] < 3

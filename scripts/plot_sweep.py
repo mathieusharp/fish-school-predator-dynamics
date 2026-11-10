@@ -8,6 +8,8 @@ maximum of the susceptibility chi = N * variance of the polarization over runs.
 If the sweep has the control school (issue #4), the figure also shows its capture rate
 gamma_c,NF and the escape ratio R_esc = 1 - gamma_c / gamma_c,NF of Fig 2D, with a
 bootstrap over runs (each run and its control share the same starting state).
+If it has the nearest-neighbour distance when the predator appears, the figure shows it
+and the correlation between this distance and the capture rate (inset of Fig 2C).
 """
 
 import json
@@ -29,7 +31,13 @@ def load(path):
     data = defaultdict(lambda: defaultdict(list))
     for line in open(path):
         r = json.loads(line)
-        for key in ("capture_rate", "capture_rate_nf", "polarization_start", "cluster_size"):
+        for key in (
+            "capture_rate",
+            "capture_rate_nf",
+            "polarization_start",
+            "cluster_size",
+            "nn_distance_start",
+        ):
             if key in r:
                 data[key][r["alg_strength"]].append(r[key])
     return data
@@ -69,6 +77,14 @@ if __name__ == "__main__":
     if control:
         rate_nf = [np.array(data["capture_rate_nf"][a]) for a in algs]
         esc = np.array([escape_ratio(r, n) for r, n in zip(rate, rate_nf, strict=True)])
+    distance = all(
+        len(data["nn_distance_start"][a]) == len(r) for a, r in zip(algs, rate, strict=True)
+    )
+    if distance:
+        dist = [np.array(data["nn_distance_start"][a]) for a in algs]
+        # Pearson correlation with the capture rate, over the points and over all runs
+        r_points = np.corrcoef([r.mean() for r in rate], [d.mean() for d in dist])[0, 1]
+        r_runs = np.corrcoef(np.concatenate(rate), np.concatenate(dist))[0, 1]
 
     print(
         "alg   | runs | capture rate      | polarization  | chi    " + control * "| no flee | R_esc"
@@ -82,8 +98,13 @@ if __name__ == "__main__":
     print(f"susceptibility maximum at {transition:g}, lowest capture rate at {lowest:g}")
     if control:
         print(f"highest escape ratio at {algs[np.argmax(esc[:, 0])]:g}")
+    if distance:
+        print(
+            "correlation between capture rate and nearest-neighbour distance: "
+            f"R = {r_points:.2f} over the points, {r_runs:.2f} over all runs"
+        )
 
-    n_panels = 4 if control else 3
+    n_panels = 3 + control + distance
     fig, axes = plt.subplots(
         n_panels, 1, figsize=(6.5, 2.7 * n_panels), sharex=True, facecolor=SURFACE
     )
@@ -135,6 +156,24 @@ if __name__ == "__main__":
         )
         style(axes[3], "R_esc")
         axes[3].axhline(0, color=MUTED, lw=1)
+    if distance:
+        axes[-1].errorbar(
+            algs,
+            [d.mean() for d in dist],
+            yerr=[d.std() for d in dist],
+            color=BLUE,
+            marker="o",
+            ms=5,
+            lw=2,
+            capsize=3,
+        )
+        axes[-1].set_title(
+            f"Nearest-neighbour distance when the predator appears (R with γc = {r_points:.2f})",
+            fontsize=10,
+            loc="left",
+            color=INK,
+        )
+        style(axes[-1], "distance")
     axes[-1].set_xlabel("alignment strength μ_alg", color=MUTED)
     for ax in axes:
         ax.axvline(transition, color="#c03fc0", lw=1.5, ls="-.")
@@ -159,8 +198,8 @@ if __name__ == "__main__":
     fig.text(
         0.01,
         0.01,
-        f"Mean ± standard error ({n_runs}+ runs per point; polarization: ± standard deviation; "
-        "R_esc: bootstrap over runs). "
+        f"Mean ± standard error ({n_runs}+ runs per point; polarization, distance: ± standard deviation; "
+        "R_esc: bootstrap over runs).\n"
         "N = 400, D = 0.5, parameters of table S1.",
         fontsize=7,
         color=MUTED,
