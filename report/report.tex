@@ -1,0 +1,86 @@
+\documentclass[9pt,twoside]{pnas-new}
+
+\articletype{Collective behavior}
+\templatetype{pnasmathematics}
+
+\begin{document}
+
+\title{From hunter to shepherd: does the optimal alignment of a fish school depend on the agent that perturbs it?}
+
+\author[a]{Mathieu Bonnet}
+\author[a]{Loup Benois}
+\author[a]{Alexandre Peret}
+
+\affil[a]{Faculty of Computer and Information Science, University of Ljubljana, Ve\v{c}na pot 113, 1000 Ljubljana, Slovenia}
+
+\leadauthor{Bonnet}
+
+\keywords{collective behavior $|$ predator--prey $|$ criticality $|$ fish schools $|$ shepherding}
+
+\begin{abstract}
+% TODO: written last.
+\end{abstract}
+
+\dates{This manuscript was compiled on \today}
+
+\maketitle
+\thispagestyle{firststyle}
+\ifthenelse{\boolean{shortarticle}}{\ifthenelse{\boolean{singlecolumn}}{\abscontentformatted}{\abscontent}}{}
+
+\section*{Introduction}
+
+A fish school under attack does not behave like a collection of independent prey. Its members turn,
+split and regroup together, and the predator faces a moving, changing target. A popular explanation for
+how such groups process information is the criticality hypothesis: living collectives would operate
+close to a phase transition, where their response to perturbations is largest~\cite{mora2011,munoz2018}.
+For moving groups the relevant transition is the one between a disordered swarm and an ordered,
+polarized school, which appears in models of self-propelled particles as soon as alignment dominates
+noise~\cite{vicsek1995,couzin2002}.
+
+Klamser and Romanczuk~\cite{klamser2021} put this hypothesis to the test with a spatially explicit
+model in which a school of 400 prey is attacked by a single predator. The capture rate is indeed
+minimal near the order--disorder transition, but not for the reason the hypothesis suggests. When the
+attacked school is compared with an identical control school that does not flee, the share of prey
+saved by fleeing grows steadily with alignment and shows no peak at the transition. The advantage of
+the critical school therefore comes from its spatial structure, which is looser and more spread out,
+and not from a better collective response. Moreover, when alignment evolves under individual-level
+selection, the prey move far into the ordered phase, so the critical point is not evolutionarily
+stable.
+
+These conclusions rest on one particular predator. It swims twice as fast as its prey, steers towards
+a weighted center of the prey in front of it and never changes its strategy. Real predators choose
+the direction of their attack~\cite{bartashevich2024}, combine tactics such as dispersing a school
+before isolating a prey~\cite{demsar2015}, and are confused when many prey move around
+them~\cite{olson2013}. It is not known whether the alignment that best protects a school depends on
+how it is attacked. The opposite question is also open. Responsiveness at criticality does not
+explain the low capture rate, but it may be exactly what an agent needs to steer a school without
+breaking it apart, as a sheepdog does with a flock~\cite{strombom2014} or a group of robots with a
+school of fish~\cite{vanhavermaet2024}. Such guiding agents are being considered to lead fish away
+from dangers or along a given path~\cite{vanhavermaet2023,vanhavermaet2024}.
+
+We therefore ask whether the benefit of operating near the order--disorder transition depends on the
+agent that perturbs the school. The project has three steps. First, we reimplement the model of
+Klamser and Romanczuk in Python and reproduce its main result. Second, we give the predator one
+behavioral improvement and test whether the result holds in three dimensions. Third, we turn the
+predator into a shepherd, whose goal is to move the school rather than to break it. This first report
+reviews the existing models, describes our reimplementation and its validation against the original
+code, and presents the reproduction of the main result.
+
+\section*{Related work}
+% TODO
+
+\section*{Methods}
+% TODO
+
+\section*{Results}
+% TODO
+
+\section*{Discussion}
+% TODO
+
+\section*{Code availability}
+% TODO
+
+\bibliography{references}
+
+\end{document}
