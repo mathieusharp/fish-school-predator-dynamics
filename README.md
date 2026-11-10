@@ -46,7 +46,7 @@ C++ runs cannot be reproduced because the seed comes from the clock, so we compa
 
 ## Reproducing the main result
 
-Capture rate and polarization against alignment strength, with the parameters of table S1 of the paper (Fig 2 at D = 0.5). Each run also attacks a copy of the school that does not flee (the control school of the paper), which gives the escape ratio R_esc = 1 − γc/γc,NF of Fig 2D, and records the nearest-neighbour distance when the predator appears (inset of Fig 2C). Runs are spread over all cores (about 3 h for the command below on 8 cores) and an interrupted sweep restarts where it stopped.
+Capture rate and polarization against alignment strength, with the parameters of table S1 of the paper (Fig 2 at D = 0.5). Each run also attacks a copy of the school that does not flee (the control school of the paper), which gives the escape ratio R_esc = 1 − γc/γc,NF of Fig 2D, and records the structure of the school when the predator appears: inter-individual distance (mean over all pairs, inset of Fig 2C) and nearest-neighbour distance. Runs are spread over all cores (about 3 h for the command below on 8 cores) and an interrupted sweep restarts where it stopped.
 
 ```bash
 python3 -m scripts.sweep_alignment results/sweep_control.jsonl 0:1.6:0.1 40   # alignment strengths 0 to 1.6, 40 runs each

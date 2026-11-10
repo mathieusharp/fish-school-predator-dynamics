@@ -17,3 +17,4 @@ ruff==0.17.3
 scipy==1.18.1
 tzdata==2026.6
 c3addae38a29d1d8f516c49a56b9399790da2ab0
+# iid_start added on 2026-11-10 by scripts/add_iid.py with the same packages; the schools found again are identical to those of the sweep (same polarization and nearest-neighbour distance in every run)

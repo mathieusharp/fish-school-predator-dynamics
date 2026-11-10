@@ -17,6 +17,7 @@ from predprey.params import Params
 from predprey.simulation import (
     alignment_strengths,
     attack,
+    iid,
     init_school,
     nn_distance,
     prey_step,
@@ -149,3 +150,10 @@ def test_nn_distance():
     assert np.isclose(nn_distance(grid), 2.0)
     r = simulate(Params(N=50, pred_time=2, attack_time=1), seed=0)
     assert 0 < r["nn_distance_start"] < 3
+
+
+def test_iid():
+    # three prey on a line, 1 and 2 apart: pairs at 1, 2 and 3
+    assert np.isclose(iid(np.array([[0.0, 0.0], [1.0, 0.0], [3.0, 0.0]])), 2.0)
+    r = simulate(Params(N=50, pred_time=2, attack_time=1), seed=0)
+    assert r["iid_start"] > r["nn_distance_start"]

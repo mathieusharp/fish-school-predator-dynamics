@@ -9,7 +9,8 @@ If the sweep has the control school (issue #4), the figure also shows its captur
 gamma_c,NF and the escape ratio R_esc = 1 - gamma_c / gamma_c,NF of Fig 2D, with a
 bootstrap over runs (each run and its control share the same starting state).
 If it has the nearest-neighbour distance when the predator appears, the figure shows it
-and the correlation between this distance and the capture rate (inset of Fig 2C).
+and the correlation between this distance and the capture rate. The paper's inset of
+Fig 2C uses the inter-individual distance instead (iid_start, see scripts/report_figures.py).
 """
 
 import json
@@ -37,6 +38,7 @@ def load(path):
             "polarization_start",
             "cluster_size",
             "nn_distance_start",
+            "iid_start",
         ):
             if key in r:
                 data[key][r["alg_strength"]].append(r[key])

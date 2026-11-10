@@ -12,6 +12,7 @@ from dataclasses import replace
 
 import numpy as np
 from scipy.spatial import cKDTree
+from scipy.spatial.distance import pdist
 
 from .geometry import (
     cluster_labels,
@@ -140,9 +141,14 @@ def polarization(u):
 
 
 def nn_distance(pos):
-    """Mean distance from each prey to its nearest neighbour (inset of Fig 2C of the paper)."""
+    """Mean distance from each prey to its nearest neighbour: local spacing of the school."""
     d, _ = cKDTree(pos).query(pos, k=2)  # k=1 is the prey itself
     return d[:, 1].mean()
+
+
+def iid(pos):
+    """Inter-individual distance of the paper (inset of Fig 2C): mean distance over all pairs."""
+    return pdist(pos).mean()
 
 
 def simulate(p=None, seed=None):
@@ -176,6 +182,7 @@ def simulate(p=None, seed=None):
     pos, u, cluster, heading = best
     polarization_start = polarization(u[cluster])
     nn_distance_start = nn_distance(pos[cluster])
+    iid_start = iid(pos[cluster])
 
     pred_x, pred_u = create_predator(pos, cluster, heading, p, rng)
     if p.control:
@@ -189,6 +196,7 @@ def simulate(p=None, seed=None):
         cluster_size=len(cluster),
         polarization_start=polarization_start,
         nn_distance_start=nn_distance_start,
+        iid_start=iid_start,
         seed=seed,
     )
     if p.control:

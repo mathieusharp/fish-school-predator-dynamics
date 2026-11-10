@@ -7,7 +7,7 @@ Reads report/data/sweep_control.jsonl (written by scripts/sweep_alignment.py) an
     report/figures/sweep.pdf, .png      Fig 2 of the paper at D = 0.5, six panels
     report/data/sweep_summary.csv       one line per alignment strength
 and prints the numbers quoted in report/RESULTS.md. Takes a few seconds.
-With --snapshots it also runs three simulations (about 2 min) and writes
+With --snapshots it also runs three simulations (about 30 s) and writes
     report/figures/snapshots.pdf, .png  the school when the predator appears, in the
                                         three phases
 """
@@ -21,7 +21,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
-from scipy.stats import ttest_ind  # noqa: E402
+from scipy.stats import ttest_ind, ttest_rel  # noqa: E402
 
 from predprey.params import Params  # noqa: E402
 from predprey.simulation import simulate  # noqa: E402
@@ -59,6 +59,7 @@ def summarize(data, p):
         rate_nf = np.array(data["capture_rate_nf"][a])
         pol = np.array(data["polarization_start"][a])
         dist = np.array(data["nn_distance_start"][a])
+        iid = np.array(data["iid_start"][a])
         n = np.mean(data["cluster_size"][a])
         esc, esc_se = escape_ratio(rate, rate_nf)
         rows.append(
@@ -74,6 +75,8 @@ def summarize(data, p):
                 "polarization": pol.mean(),
                 "polarization_sd": pol.std(ddof=1),
                 "susceptibility": beta * n * pol.var(),
+                "iid": iid.mean(),
+                "iid_sd": iid.std(ddof=1),
                 "nn_distance": dist.mean(),
                 "nn_distance_sd": dist.std(ddof=1),
             }
@@ -82,8 +85,7 @@ def summarize(data, p):
 
 
 def phase_values(data, key, phase):
-    lo, hi = PHASES[phase]
-    return np.concatenate([v for a, v in data[key].items() if lo - 1e-9 <= a <= hi + 1e-9])
+    return window(data, key, *PHASES[phase])
 
 
 def print_numbers(data, rows):
@@ -96,16 +98,19 @@ def print_numbers(data, rows):
     )
     print(f"lowest capture rate at mu_alg = {algs[np.argmin(col['capture_rate'])]:g}")
     print(f"highest escape ratio at mu_alg = {algs[np.argmax(col['escape_ratio'])]:g}")
+    print(f"largest IID at mu_alg = {algs[np.argmax(col['iid'])]:g}")
     print(f"largest nn distance at mu_alg = {algs[np.argmax(col['nn_distance'])]:g}")
     print("\nby phase (all runs of the phase pooled):")
     for phase in PHASES:
         rate = phase_values(data, "capture_rate", phase)
         nf = phase_values(data, "capture_rate_nf", phase)
         dist = phase_values(data, "nn_distance_start", phase)
+        iid = phase_values(data, "iid_start", phase)
         print(
             f"  {phase:<10} mu_alg {PHASES[phase][0]}-{PHASES[phase][1]}: "
             f"gamma_c {rate.mean():.4f}, gamma_c,NF {nf.mean():.4f}, "
-            f"R_esc {1 - rate.mean() / nf.mean():.3f}, nn distance {dist.mean():.3f}"
+            f"R_esc {1 - rate.mean() / nf.mean():.3f}, IID {iid.mean():.2f}, "
+            f"nn distance {dist.mean():.3f}"
         )
     trans = phase_values(data, "capture_rate", "transition")
     for phase in ("disordered", "ordered"):
@@ -115,20 +120,83 @@ def print_numbers(data, rows):
             f"  transition vs {phase}: {100 * (1 - trans.mean() / other.mean()):.1f} % fewer "
             f"captures, Welch t = {t.statistic:.2f}, p = {t.pvalue:.1g}"
         )
+    # the window 0.6-0.8 surrounds our minimum: same test centred on the paper's transition
+    late = window(data, "capture_rate", 0.8, 1.0)
+    for phase in ("disordered", "ordered"):
+        other = phase_values(data, "capture_rate", phase)
+        t = ttest_ind(late, other, equal_var=False)
+        print(
+            f"  window 0.8-1.0 vs {phase}: {100 * (1 - late.mean() / other.mean()):.1f} % fewer, "
+            f"p = {t.pvalue:.1g}"
+        )
+    # control school: is there a dip without fleeing?
+    nf_trans = window(data, "capture_rate_nf", 0.6, 0.9)
+    print(f"  control school, lowest at mu_alg = {algs[np.argmin(col['capture_rate_nf'])]:g}")
+    for phase in ("disordered", "ordered"):
+        other = phase_values(data, "capture_rate_nf", phase)
+        t = ttest_ind(nf_trans, other, equal_var=False)
+        print(
+            f"  control school 0.6-0.9 vs {phase}: "
+            f"{100 * (1 - nf_trans.mean() / other.mean()):.1f} % fewer, p = {t.pvalue:.1g}"
+        )
     rate_all = np.concatenate([data["capture_rate"][a] for a in algs])
     nf_all = np.concatenate([data["capture_rate_nf"][a] for a in algs])
-    t = ttest_ind(rate_all, nf_all, equal_var=False)
     print(
         f"  all runs: fleeing {rate_all.mean():.4f} vs not fleeing {nf_all.mean():.4f}, "
-        f"R_esc {1 - rate_all.mean() / nf_all.mean():.3f}, Welch p = {t.pvalue:.1g}"
+        f"R_esc {1 - rate_all.mean() / nf_all.mean():.3f}, "
+        f"paired t-test p = {ttest_rel(rate_all, nf_all).pvalue:.1g}"
     )
-    dist_all = np.concatenate([data["nn_distance_start"][a] for a in algs])
-    print(
-        "\nPearson correlation between capture rate and nn distance: "
-        f"R = {np.corrcoef(col['capture_rate'], col['nn_distance'])[0, 1]:.2f} over the "
-        f"{len(algs)} means, {np.corrcoef(rate_all, dist_all)[0, 1]:.2f} over the "
-        f"{len(rate_all)} runs"
-    )
+    slope = weighted_slope(algs, col["escape_ratio"], col["escape_ratio_se"])
+    print(f"  R_esc against mu_alg: slope {slope[0]:.3f} ± {slope[1]:.3f} (weighted fit)")
+    high = algs >= 0.6
+    slope = weighted_slope(algs[high], col["escape_ratio"][high], col["escape_ratio_se"][high])
+    print(f"  same for mu_alg >= 0.6: slope {slope[0]:.3f} ± {slope[1]:.3f}")
+
+    print("\nlocation uncertainty (bootstrap over runs, 2000 resamples):")
+    for name, where in bootstrap_locations(data, algs).items():
+        share = ", ".join(f"{a:g}: {100 * f:.0f} %" for a, f in where if f >= 0.01)
+        print(f"  {name}: {share}")
+    c = np.polyfit(algs, col["capture_rate"], 2)
+    print(f"  vertex of a parabola fitted to the mean capture rates: {-c[1] / (2 * c[0]):.2f}")
+
+    print("\nPearson correlation with the capture rate:")
+    for key, name in (("iid", "IID"), ("nn_distance", "nn distance")):
+        runs = np.concatenate([data[f"{key}_start"][a] for a in algs])
+        within = np.mean(
+            [np.corrcoef(data["capture_rate"][a], data[f"{key}_start"][a])[0, 1] for a in algs]
+        )
+        print(
+            f"  {name}: R = {np.corrcoef(col['capture_rate'], col[key])[0, 1]:.2f} over the "
+            f"{len(algs)} means, {np.corrcoef(rate_all, runs)[0, 1]:.2f} over the "
+            f"{len(rate_all)} runs, {within:.2f} on average within one alignment strength"
+        )
+
+
+def window(data, key, lo, hi):
+    return np.concatenate([v for a, v in data[key].items() if lo - 1e-9 <= a <= hi + 1e-9])
+
+
+def weighted_slope(x, y, se):
+    """Slope of a straight line fitted with weights 1/se, and its standard error."""
+    coef, cov = np.polyfit(x, y, 1, w=1 / se, cov="unscaled")
+    return coef[0], np.sqrt(cov[0, 0])
+
+
+def bootstrap_locations(data, algs, n_boot=2000):
+    """Share of resamples where the maximum of chi and the minimum of the capture rate fall
+    at each alignment strength."""
+    rng = np.random.default_rng(0)
+    pol = [np.array(data["polarization_start"][a]) for a in algs]
+    rate = [np.array(data["capture_rate"][a]) for a in algs]
+    chi_max, rate_min = [], []
+    for _ in range(n_boot):
+        pick = [rng.integers(len(r), size=len(r)) for r in rate]
+        chi_max.append(algs[np.argmax([p[i].var() for p, i in zip(pol, pick, strict=True)])])
+        rate_min.append(algs[np.argmin([r[i].mean() for r, i in zip(rate, pick, strict=True)])])
+    return {
+        name: [(a, np.mean(np.array(x) == a)) for a in algs]
+        for name, x in (("maximum of chi", chi_max), ("minimum of capture rate", rate_min))
+    }
 
 
 def write_csv(rows, path):
@@ -187,11 +255,11 @@ def sweep_figure(rows, data):
     ax[3].axhline(0, color=MUTED, lw=0.8)
     panel(ax[3], "D", "Escape ratio", "R_esc = 1 − γc / γc,NF")
 
-    ax[4].errorbar(algs, col["nn_distance"], col["nn_distance_sd"], color=BLUE, **line)
-    panel(ax[4], "E", "Nearest-neighbour distance", "distance (units of r_d)")
-    r = np.corrcoef(col["capture_rate"], col["nn_distance"])[0, 1]
+    ax[4].errorbar(algs, col["iid"], col["iid_sd"], color=BLUE, **line)
+    panel(ax[4], "E", "Inter-individual distance", "IID (units of r_d)")
+    r = np.corrcoef(col["capture_rate"], col["iid"])[0, 1]
     ax[5].scatter(
-        col["nn_distance"],
+        col["iid"],
         col["capture_rate"],
         s=14,
         color=ORANGE,
@@ -199,7 +267,7 @@ def sweep_figure(rows, data):
         lw=0.5,
         zorder=3,
     )
-    for a, x, y in zip(algs, col["nn_distance"], col["capture_rate"], strict=True):
+    for a, x, y in zip(algs, col["iid"], col["capture_rate"], strict=True):
         if a in (0.0, 0.8, 1.6):
             ax[5].annotate(
                 f"μ_alg = {a:g}",
@@ -211,8 +279,8 @@ def sweep_figure(rows, data):
                 ha="left" if a == 1.6 else "right",
                 va="center",
             )
-    panel(ax[5], "F", f"Capture rate vs distance (R = {r:.2f})", "γc")
-    ax[5].set_xlabel("nearest-neighbour distance")
+    panel(ax[5], "F", f"Capture rate vs IID, {len(algs)} means (R = {r:.2f})", "γc")
+    ax[5].set_xlabel("inter-individual distance IID")
 
     for k in range(5):
         mark_transition(ax[k], transition)
