@@ -78,6 +78,16 @@ def test_ray_to_alpha_shape():
     assert ray_to_alpha_shape(points, origin, np.array([-1.0, 0.0]), 3) == np.inf
 
 
+def test_ray_to_alpha_shape_3d():
+    # a cubic block of prey from x = 10 to x = 14
+    xs, ys, zs = np.meshgrid(np.arange(10, 15), np.arange(-2, 3), np.arange(-2, 3))
+    points = np.column_stack([xs.ravel(), ys.ravel(), zs.ravel()]).astype(float)
+    points += np.random.default_rng(0).normal(0, 1e-3, points.shape)  # avoid degenerate cubes
+    origin = np.zeros(3)
+    assert np.isclose(ray_to_alpha_shape(points, origin, np.array([1.0, 0, 0]), 3), 10, atol=0.01)
+    assert ray_to_alpha_shape(points, origin, np.array([-1.0, 0, 0]), 3) == np.inf
+
+
 def test_init_school():
     p = Params(N=100)
     pos, u = init_school(p, np.random.default_rng(0))
@@ -145,3 +155,14 @@ def test_simulate_is_reproducible():
     assert np.allclose(a["pred_pos"], b["pred_pos"])
     assert np.array_equal(a["kills"], b["kills"])
     assert a["prey_pos"].shape == (10, 50, 2)  # 2 time units, one frame every 0.2
+
+
+def test_simulate_3d():
+    p = Params(dim=3, cpp_neighbour_count=False, N=50, pred_time=2, attack_time=2)
+    a = simulate(p, seed=3)
+    b = simulate(p, seed=3)
+    assert np.allclose(a["pred_pos"], b["pred_pos"])
+    assert a["prey_pos"].shape == (10, 50, 3)
+    assert np.allclose(norm(a["pred_u"]), 1)
+    # the predator starts outside the school, about pred_radius away
+    assert np.nanmin(norm(a["prey_pos"][0] - a["pred_pos"][0])) > p.pred_radius / 2

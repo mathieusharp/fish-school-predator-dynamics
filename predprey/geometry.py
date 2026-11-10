@@ -132,7 +132,11 @@ def ray_to_alpha_shape(points, origin, u, alpha_radius):
     Delaunay edges shorter than 2 * alpha_radius. Starting from outside the school,
     the first edge hit is on its boundary.
     Returns inf if the ray misses the school.
+    In 3D, the boundary is made of the Delaunay triangles whose edges are all shorter than
+    2 * alpha_radius.
     """
+    if points.shape[1] == 3:
+        return ray_to_alpha_shape_3d(points, origin, u, alpha_radius)
     edges = delaunay_edges(points)
     a, b = points[edges[:, 0]], points[edges[:, 1]]
     keep = norm(b - a) <= 2 * alpha_radius
@@ -145,4 +149,29 @@ def ray_to_alpha_shape(points, origin, u, alpha_radius):
         t = (ao[:, 0] * ab[:, 1] - ao[:, 1] * ab[:, 0]) / denom
         s = (ao[:, 0] * u[1] - ao[:, 1] * u[0]) / denom
     hit = (denom != 0) & (t > 0) & (s >= 0) & (s <= 1)
+    return t[hit].min() if hit.any() else np.inf
+
+
+def ray_to_alpha_shape_3d(points, origin, u, alpha_radius):
+    """3D version of ray_to_alpha_shape: first Delaunay triangle hit by the ray (Moller-Trumbore)."""
+    s = Delaunay(points).simplices
+    faces = np.concatenate([s[:, list(f)] for f in combinations(range(4), 3)])
+    a, b, c = points[faces[:, 0]], points[faces[:, 1]], points[faces[:, 2]]
+    short = (
+        (norm(b - a) <= 2 * alpha_radius)
+        & (norm(c - a) <= 2 * alpha_radius)
+        & (norm(c - b) <= 2 * alpha_radius)
+    )
+    a, b, c = a[short], b[short], c[short]
+    # solve origin + t * u = a + s * (b - a) + v * (c - a), with t > 0, s, v >= 0, s + v <= 1
+    ab, ac = b - a, c - a
+    pvec = np.cross(u, ac)
+    det = np.sum(ab * pvec, axis=1)
+    ao = origin - a
+    qvec = np.cross(ao, ab)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        s = np.sum(ao * pvec, axis=1) / det
+        v = (qvec @ u) / det
+        t = np.sum(ac * qvec, axis=1) / det
+    hit = (det != 0) & (t > 0) & (s >= 0) & (v >= 0) & (s + v <= 1)
     return t[hit].min() if hit.any() else np.inf

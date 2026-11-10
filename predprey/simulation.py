@@ -148,13 +148,22 @@ def prey_step(pos, u, alg, p, rng, pred_pos=None):
 
 
 def create_predator(pos, cluster, heading, p, rng):
-    """Places the predator pred_radius away from the school, at a random angle (C++: CreatePredator)."""
-    if len(heading) != 2:
-        raise NotImplementedError("predator in 3D, see issue #10")
-    direction = np.arctan2(heading[1], heading[0])
-    side = 1 if rng.uniform(-p.pred_angle_noise, p.pred_angle_noise) >= 0 else -1
-    angle = direction + side * (p.pred_angle + rng.uniform(-p.pred_angle_noise, p.pred_angle_noise))
-    u = -np.array([np.cos(angle), np.sin(angle)])  # pointing towards the school
+    """Places the predator pred_radius away from the school, at a random angle (C++: CreatePredator).
+
+    In 3D, the angle to the school heading is drawn as in 2D, on a random side around it.
+    """
+    if len(heading) == 2:
+        direction = np.arctan2(heading[1], heading[0])
+        side = 1 if rng.uniform(-p.pred_angle_noise, p.pred_angle_noise) >= 0 else -1
+        angle = direction + side * (
+            p.pred_angle + rng.uniform(-p.pred_angle_noise, p.pred_angle_noise)
+        )
+        u = -np.array([np.cos(angle), np.sin(angle)])  # pointing towards the school
+    else:
+        h = unit(heading)
+        side = unit(perpendicular_part(rng.standard_normal(3), h))
+        angle = p.pred_angle + rng.uniform(-p.pred_angle_noise, p.pred_angle_noise)
+        u = -turn_towards(h, angle * side)
     school = pos[cluster]
     com = school.mean(axis=0)
     x = com - u * (np.abs((school - com) @ u).max() + 1)  # surely behind the school
