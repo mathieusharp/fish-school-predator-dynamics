@@ -50,7 +50,7 @@ Capture rate and polarization against alignment strength, with the parameters of
 
 ```bash
 python3 -m scripts.sweep_alignment results/sweep_control.jsonl 0:1.6:0.1 40   # alignment strengths 0 to 1.6, 40 runs each
-python3 -m scripts.plot_sweep results/sweep_control.jsonl results/sweep.png    # prints a table and saves the figure
+python3 -m scripts.plot_sweep results/sweep_control.jsonl results/sweep_control.png    # prints a table and saves the figure
 ```
 
 ## Team (Group F)
