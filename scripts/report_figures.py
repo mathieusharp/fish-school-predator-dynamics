@@ -283,12 +283,13 @@ def sweep_figure(rows, data):
             ax[5].annotate(
                 rf"$\mu_\mathrm{{alg}}$ = {a:g}",
                 (x, y),
-                xytext=(0, 7) if a == 1.6 else (-5, 0),
+                xytext={1.6: (0, 7), 0.0: (-12, 12)}.get(a, (-5, 0)),
                 textcoords="offset points",
                 color=MUTED,
                 fontsize=7,
                 ha="left" if a == 1.6 else "right",
                 va="center",
+                arrowprops=dict(arrowstyle="-", color=MUTED, lw=0.5) if a == 0.0 else None,
             )
     panel(ax[5], "F", "Capture rate vs IID", "capture rate")
     ax[5].set_xlabel(r"IID (units of $r_d$)")
