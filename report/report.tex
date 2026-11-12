@@ -43,8 +43,8 @@ different agent: first a more realistic predator, then a shepherd that tries to 
 instead of catching prey. In this first report, models of collective motion, predation and
 shepherding are reviewed. The model of Klamser and Romanczuk is reimplemented in Python and validated
 against the original code, and the minimum of the capture rate at the transition is reproduced (about 13\% fewer captures).
-The next reports will test whether this minimum stays at the transition for an improved predator,
-in 2D and 3D, and whether the transition also helps a shepherd.
+The next reports will test whether this minimum stays at the transition for a predator that is confused by many
+prey or that intercepts its target, in 2D and 3D, and whether the transition also helps a shepherd.
 \end{abstract}
 
 \dates{Faculty of Computer and Information Science, University of Ljubljana. First report, November 13, 2026}
@@ -74,19 +74,19 @@ up far in the ordered phase: the transition is best for the group, but evolution
 there.
 
 These results are obtained with one specific predator. It swims twice as fast as the prey, heads for
-a weighted center of the prey in front of it, and always follows the same rule. Real predators choose
-the direction of their attack~\cite{bartashevich2024}, combine tactics such as splitting a school
+a weighted center of the prey in front of it, and always follows the same rule. Real predators choose the direction of their attack (marlins most often attack sardines from the
+side~\cite{bartashevich2024}), combine tactics such as splitting a school
 before isolating a prey~\cite{demsar2015}, and get confused when many prey move around
 them~\cite{olson2013}. Would a different predator change which alignment protects a school best? This
 does not seem to have been tested. The opposite question is open as well. The high
 responsiveness at criticality does not explain the low capture rate, but it could be useful for an
 agent that wants to steer a school without breaking it, like a sheepdog with a flock~\cite{strombom2014}
-or a group of robots with fish~\cite{vanhavermaet2024}. Such agents could lead groups away from dangers
-or along a given path~\cite{vanhavermaet2023,vanhavermaet2024}.
+or a group of robots with fish, to lead them away from dangers or along a given
+path~\cite{vanhavermaet2023,vanhavermaet2024}.
 
 The question is therefore whether the benefit of being near the order--disorder transition depends
-on the agent that perturbs the school. The project has three steps: reproduce the model of Klamser and Romanczuk,
-improve its predator and move to three dimensions, then turn the predator into a shepherd that moves
+on the agent that perturbs the school: does the transition still protect the school from a more realistic predator, and does it make the school easier for a shepherd to move? The project has three steps: reproduce the model of Klamser and Romanczuk,
+make the predator confused by many prey or able to intercept its prey, in 2D and then 3D, then turn the predator into a shepherd that moves
 the school without breaking it. This first report
 reviews existing models, presents the reimplementation and the reproduced result, and describes the
 next steps.
@@ -106,10 +106,9 @@ indirect.
 
 \paragraph*{Predator--prey models}
 Klamser and Romanczuk~\cite{klamser2021} combine a Vicsek-like school with a pursuing predator, and
-evolve the alignment strength of the prey with an evolutionary algorithm. Their predator is
-deliberately simple. Other studies focus on the predator itself. Dem\v{s}ar et al.~\cite{demsar2015}
+evolve the alignment strength of the prey with an evolutionary algorithm. Other studies focus on the predator itself. Dem\v{s}ar et al.~\cite{demsar2015}
 evolved composite hunting tactics with a genetic algorithm, for example splitting a school before
-catching an isolated prey. The dispersing tactic was the best one only when the predator could be confused by the prey.
+catching an isolated prey. The dispersing tactic worked much better when the predator could be confused by the prey.
 Olson et al.~\cite{olson2013} showed that predator confusion alone is enough for swarming to evolve in
 prey. Bartashevich et al.~\cite{bartashevich2024}, from the same group as Klamser, filmed striped
 marlin attacking sardine schools. The ``fountain'' escape of the school depended on the direction of
@@ -122,8 +121,10 @@ are too spread out and drives them once they are grouped. Their model reproduces
 sheepdogs. However, their sheep do not align with each other and stop when the dog is far away,
 whereas fish swim all the time in an aligned school. Van Havermaet et
 al. use several robots that surround the group, to keep a herd away from dangers~\cite{vanhavermaet2023}
-or to guide simulated fish along a path~\cite{vanhavermaet2024}. Their method needs enough robots for the size of the group, so it is not
-known whether a single agent could guide a fish school.
+or to guide simulated fish along a path~\cite{vanhavermaet2024}. Their method needs enough robots for the size of the group. Shibayama and Kawashima~\cite{shibayama2026}
+guided small groups of 5 to 8 real fish with one virtual agent shown on a screen and trained by reinforcement learning. The guidance got
+worse as the group grew, and more agents did not help. It is not known whether a single agent can steer a large
+aligned school, or how this depends on alignment.
 
 \section*{Methods}
 
@@ -151,7 +152,8 @@ predator is one of its neighbors. $n_i$ is a neighbor count (see Reimplementatio
 alignment strengths $\mu_{\mathrm{alg},i}$ are drawn around a mean value $\mu_{\mathrm{alg}}$.
 
 The predator is twice as fast as the prey. It appears after an equilibration time $T_{\mathrm{eq}}$, at a distance of 4.5 from the school, from an almost random direction. It first heads for the center of the school. Once it is close, it heads for the prey in front of it,
-weighted by their chance of being caught. A prey at a distance $d < r_{\mathrm{catch}}$ is caught
+weighted by their chance of being caught. A prey in front of the predator, among its Voronoi neighbors, at a distance
+$d < r_{\mathrm{catch}}$ is caught
 with probability $p = \gamma_a\,\Delta t\,(r_{\mathrm{catch}} - d)/(r_{\mathrm{catch}}\,n_c)$, where
 $n_c$ is the number of prey in reach. Caught prey are removed.
 
@@ -213,23 +215,34 @@ of $\chi$; dotted line: transition given by the paper.}
 
 \paragraph*{Planned extensions}
 Each extension only changes the agent that perturbs the school, and this agent only uses local
-information. The prey rules, the sweep over $\mu_{\mathrm{alg}}$ and the control school stay the same,
-so each new agent can be compared directly with the reproduced model (Table~\ref{tab:plan}).
+information. Apart from the move to 3D, the prey rules and the sweep over $\mu_{\mathrm{alg}}$ stay the same, and the new predators are also
+tested on the control school, so each new agent can be compared directly with the reproduced model (Table~\ref{tab:plan}).
 
-For the second report, the predator will be improved in one way. One option is to choose the attack
-direction relative to the heading of the school, as marlins do~\cite{bartashevich2024}. Another is to
-head for the predicted position of the target instead of its current position. The question is
-whether the capture-rate minimum stays at the transition. On the ordered side, where the dip comes from the structure of the
-school, it should not move. On the disordered side, where it comes from fleeing, it may change. The model will then be moved to three
-dimensions: headings become 3D unit vectors, the Voronoi neighbors are computed in 3D, and the
-predator can also attack from below or above.
+For the second report, the predator will be changed in two ways, each aimed at one of the two
+effects found in the reproduction. First, it will be confused by many prey, as in the models of Olson et
+al.~\cite{olson2013} and Dem\v{s}ar et al.~\cite{demsar2015}: its chance of making a catch will
+decrease when many prey are within a confusion radius, counted among all the prey it sees and not
+only its Voronoi neighbors. In the original model this chance does not depend on
+their number: dividing by $n_c$ only shares it among them. On the ordered side the dip comes from the looser structure of the school, and dense schools are protected against a confused predator. Since the ordered phase is the densest
+(Fig.~\ref{fig:sweep}E), the minimum is expected to move towards it. Second,
+the predator will head for the predicted position of the prey it hunts instead of their current
+position. On
+the disordered side the dip comes from fleeing, and a predator that intercepts fleeing prey should
+reduce this benefit. The capture rate and the escape ratio will be measured against
+$\mu_{\mathrm{alg}}$, with the original predator as reference. Each change is first tested alone, then both together. The comparison will then be made in
+three dimensions, with 3D Voronoi neighbors. There, the predator will also choose the direction of
+its attack, including from below or above, since the escape of a school depends on the attack
+direction~\cite{bartashevich2024}.
 
-For the final report, the predator becomes a shepherd that moves the school to a target region. The
+For the final report, the predator becomes a shepherd that moves the school to a target region.
+This is the most original part of the project: as seen above, it is not known whether one agent can
+steer a large aligned school, and which alignment strength makes this easiest. The
 rules of Str\"ombom et al.~\cite{strombom2014} (collect the group when it is spread out, drive it
-when it is grouped) will be adapted to fish. The main change is that the school keeps swimming and
+when it is grouped) will be adapted to fish, with a shepherd that only sees the fish near it. The main change is that the school keeps swimming and
 aligning by itself, so the shepherd has to deflect a moving school, without making it flee and split.
 The fraction of the school that reaches the target, the time needed and the number of groups the
-school splits into will be measured as a function of alignment. One shepherd will also be compared
+school splits into will be measured as a function of alignment. The shepherd is expected to work best near the
+transition, where the school responds strongly but stays in one group. One shepherd will also be compared
 with the robot groups of Van Havermaet et al.~\cite{vanhavermaet2024}.
 
 \begin{table}[t]
@@ -241,7 +254,7 @@ with the robot groups of Van Havermaet et al.~\cite{vanhavermaet2024}.
 Step & Agent & Main measure & Report \\
 \midrule
 1 & Original predator (2D) & Capture rate, escape ratio & Nov.~13, 2026 \\
-2 & Improved predator (2D, then 3D) & Capture rate, escape ratio & Dec.~11, 2026 \\
+2 & Confused or intercepting predator (2D); attack direction (3D) & Capture rate, escape ratio & Dec.~11, 2026 \\
 3 & Shepherd & Fraction at target, time, splits & Jan.~8, 2027 \\
 \bottomrule
 \end{tabular}
@@ -250,27 +263,26 @@ Step & Agent & Main measure & Report \\
 \section*{Results}
 
 \paragraph*{Validation against the original code}
-C++ runs cannot be replayed, so the two codes can only agree on average. They do. The polarization
+C++ runs cannot be replayed, so the two codes are compared on average. The polarization
 curves overlap, and the susceptibility peaks one step apart (0.9 for C++, 0.8 for Python). The
-mean capture rate is also the same: 0.161 for the C++ code and 0.163 for the Python code. After a Bonferroni correction over the 17 values, no alignment strength shows a significant difference. The comparison figure is in the repository
+mean capture rate is also the same: 0.161 for the C++ code and 0.163 for the Python code. After a Bonferroni correction over the 17 values, no alignment strength shows a significant difference
 (\texttt{report/figures/cpp\_comparison.pdf}). The main difference is that the dip of the C++ code is less deep on the
 ordered side (7\% below the ordered phase, against 13\% for Python).
 
 \paragraph*{Order and responsiveness}
-When the alignment strength increases, the school goes from a disordered swarm, where prey head in all
-directions ($\Phi \approx 0$), to a polarized school (Fig.~\ref{fig:sweep}A). The polarization rises
-fastest and varies most between runs around $\mu_{\mathrm{alg}} \approx 0.8$, where the susceptibility
-peaks (Fig.~\ref{fig:sweep}B). The order--disorder transition is placed there, close to the
-value of 0.9 given in the paper.
+When the alignment strength increases, the school goes from a disordered swarm ($\Phi \approx 0$)
+to a polarized school (Fig.~\ref{fig:sweep}A). The polarization varies most between runs around
+$\mu_{\mathrm{alg}} \approx 0.8$, where the susceptibility peaks (Fig.~\ref{fig:sweep}B). The
+transition is placed there, close to the value of 0.9 given in the paper.
 
 \paragraph*{Group optimum}
-The predator catches the fewest prey at the transition (Fig.~\ref{fig:sweep}C). For $\mu_{\mathrm{alg}} = 0.8$--$1.0$, the capture rate is about 13\% lower than in the disordered
-($0$--$0.2$) or the ordered ($1.4$--$1.6$) phase. Both differences are significant (Welch t-tests, $p < 10^{-4}$). It corresponds to the group optimum of Fig.~2C of the paper.
+The predator catches the fewest prey at the transition (Fig.~\ref{fig:sweep}C), as in Fig.~2C of
+the paper. For $\mu_{\mathrm{alg}} = 0.8$--$1.0$, the capture rate is about 13\% lower than in the disordered
+($0$--$0.2$) or the ordered ($1.4$--$1.6$) phase. Both differences are significant (Welch t-tests, $p < 10^{-4}$).
 
 \paragraph*{Fleeing or structure}
-A school can be caught less because it escapes better, or because its spatial arrangement makes it
-harder to attack. The control school has the same structure but does not flee, so it separates the two
-effects. On average, fleeing helps: the control school loses more prey, and the escape ratio is about
+A school can be caught less because it escapes better, or because its structure makes it harder to
+attack. The control school has the same structure but does not flee, so it separates the two. On average, fleeing helps: the control school loses more prey, and the escape ratio is about
 0.1. However, the escape ratio has no peak at the transition (Fig.~\ref{fig:sweep}D): it rises from
 the disordered phase, then stays at about 0.1--0.2. On the ordered side, the control school is also caught least near
 the transition, so on this side the dip comes mostly from the structure of the school. On the disordered side, the control school is only about 3--4\% lower at the transition (not significant), so on this side the dip comes mostly from fleeing. Near the transition the school is also the most spread out
@@ -281,28 +293,23 @@ anticorrelated with the capture rate ($R = -0.80$, Fig.~\ref{fig:sweep}F), as in
 \section*{Discussion}
 
 The first result of Klamser and Romanczuk~\cite{klamser2021} is reproduced: a school is caught least
-near the order--disorder transition, and, as in the paper, the escape ratio has no peak there. On the ordered side, the dip comes mostly
-from the structure of the school; on the disordered side, mostly from fleeing.
+near the order--disorder transition, and, as in the paper, the escape ratio has no peak there. The dip comes mostly from the structure of
+the school on the ordered side, and from fleeing on the disordered side.
 
-There are two differences from the paper, and one point to keep in mind. First, the capture rates obtained here are
+There are two differences from the paper, and one caveat. First, the capture rates obtained here are
 about 1.8 times higher than in Fig.~2C of the paper, but the curve has the same shape. The original
 C++ code gives the same level as the Python code, so the difference is between the published code and the
 published figure. It may come from the way captures are counted. Second, the escape ratio obtained here stops
 increasing in the ordered phase, while that of the paper keeps increasing. With 40 runs per point
-it is noisy, so its exact shape is uncertain. Finally, the link between inter-individual distance and
+it is noisy, so its exact shape is uncertain, and more runs will be needed for the next steps. Finally, the link between inter-individual distance and
 captures only holds across alignment strengths. At a fixed alignment strength, schools that are more
 spread out are not caught less. Both quantities may simply depend on the alignment strength, without
-one causing the other.
+one causing the other; the confused predator will test this link.
 
 The reproduction uses a single noise level, $D = 0.5$. It also measures the school only once per run,
-when the predator appears, which may be too early for schools near the transition to settle. The
-evolution of alignment towards the ordered phase was not reproduced, as it is outside the scope of
-this project.
+when the predator appears, which may be too early for schools near the transition to settle. The evolution of alignment was not reproduced, as it is outside the scope of this project.
 
-These results give the baseline for the next steps. With 40 runs per point, the dip of the capture
-rate is clearly detected, but the escape ratio is too noisy, so more runs may be needed for the new
-predators. On the ordered side, the dip comes from the structure of the school, so it should stay for a
-better predator. On the disordered side, it comes from fleeing, so a better predator may change it. For the shepherd, the transition could be useful for another reason: the school may respond strongly while staying in one group.
+
 
 Code, data, figure scripts and the source of this report are available at\\
 \url{https://github.com/mathieusharp/fish-school-predator-dynamics}.
