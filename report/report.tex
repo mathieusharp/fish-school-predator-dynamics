@@ -207,8 +207,8 @@ runs per value. For validation, the C++ code is run with the same values.
 ($\pm$ s.d.). (B) Susceptibility. (C) Capture rate of the fleeing school $\gamma_c$ and of the
 control school that does not flee $\gamma_{c,\mathrm{NF}}$ ($\pm$ s.e.; the y-axis does not start at 0). (D) Escape ratio
 ($\pm$ bootstrap s.e.). (E) Inter-individual distance when the predator appears ($\pm$ s.d.).
-(F) Capture rate against the IID, one point per alignment strength ($R = -0.80$). Dash-dotted line: maximum
-of $\chi$; dotted line: transition given by the paper.}
+(F) Capture rate against the IID, one point per alignment strength ($R = -0.80$). Dash-dotted line: maximum of $\chi$; dotted line: transition given by the paper. Phases compared in
+the text: disordered ($\mu_{\mathrm{alg}} = 0$--$0.2$), transition ($0.8$--$1.0$), ordered ($1.4$--$1.6$).}
 \label{fig:sweep}
 \end{figure}
 
@@ -264,10 +264,10 @@ Step & Agent & Main measure & Report \\
 
 \paragraph*{Validation against the original code}
 C++ runs cannot be replayed, so the two codes are compared on average. The polarization
-curves overlap, and the susceptibility peaks one step apart (0.9 for C++, 0.8 for Python). The
-mean capture rate is also the same: 0.161 for the C++ code and 0.163 for the Python code. After a Bonferroni correction over the 17 values, no alignment strength shows a significant difference
-(\texttt{report/figures/cpp\_comparison.pdf}). The main difference is that the dip of the C++ code is less deep on the
-ordered side (7\% below the ordered phase, against 13\% for Python).
+curves overlap, and the susceptibility peaks one step apart. The mean capture rate is also the same:
+0.161 for the C++ code and 0.163 for the Python code. After correction for multiple tests, no
+alignment strength shows a significant difference (\texttt{report/figures/cpp\_comparison.pdf}).
+The only clear difference is that the dip of the C++ code is less deep on the ordered side.
 
 \paragraph*{Order and responsiveness}
 When the alignment strength increases, the school goes from a disordered swarm ($\Phi \approx 0$)
@@ -277,15 +277,15 @@ transition is placed there, close to the value of 0.9 given in the paper.
 
 \paragraph*{Group optimum}
 The predator catches the fewest prey at the transition (Fig.~\ref{fig:sweep}C), as in Fig.~2C of
-the paper. For $\mu_{\mathrm{alg}} = 0.8$--$1.0$, the capture rate is about 13\% lower than in the disordered
-($0$--$0.2$) or the ordered ($1.4$--$1.6$) phase. Both differences are significant (Welch t-tests, $p < 10^{-4}$).
+the paper. Around it, the capture rate is about 13\% lower than in the disordered
+or the ordered phase, and both differences are significant.
 
 \paragraph*{Fleeing or structure}
 A school can be caught less because it escapes better, or because its structure makes it harder to
 attack. The control school has the same structure but does not flee, so it separates the two. On average, fleeing helps: the control school loses more prey, and the escape ratio is about
-0.1. However, the escape ratio has no peak at the transition (Fig.~\ref{fig:sweep}D): it rises from
-the disordered phase, then stays at about 0.1--0.2. On the ordered side, the control school is also caught least near
-the transition, so on this side the dip comes mostly from the structure of the school. On the disordered side, the control school is only about 3--4\% lower at the transition (not significant), so on this side the dip comes mostly from fleeing. Near the transition the school is also the most spread out
+0.1. However, the escape ratio has no peak at the transition (Fig.~\ref{fig:sweep}D): it rises from the disordered phase, then stays roughly constant. On the ordered side, the control school is also caught least near
+the transition, so on this side the dip comes mostly from the structure of the school. On the disordered side, the control school is barely lower at the transition, so on this side the
+dip comes mostly from fleeing. Near the transition the school is also the most spread out
 (Fig.~\ref{fig:sweep}E). Across alignment strengths, the inter-individual distance is strongly
 anticorrelated with the capture rate ($R = -0.80$, Fig.~\ref{fig:sweep}F), as in the paper
 ($R = -0.69$).
