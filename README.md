@@ -33,13 +33,20 @@ git clone https://github.com/PaPeK/PredatorPrey.git local/PredatorPrey
 make -C local/PredatorPrey LFLAGS="-lgsl -lgslcblas -lm -lgmp -lboost_system -lboost_thread"
 ```
 
-Comparison with the Python model (one C++ run takes about 15 s):
+Quick comparison with the Python model, default parameters of the C++ code (runs are spread over all cores; one C++ run takes about 15 s):
 
 ```bash
 mkdir -p results
 python3 scripts/run_cpp.py local/PredatorPrey results/cpp.jsonl 0.5,1,2,5 4   # alignment strengths, runs per value
 python3 scripts/compare_cpp.py results/cpp.jsonl results/py.jsonl 4            # same values in Python, prints a table
 python3 scripts/plot_comparison.py results/cpp.jsonl results/py.jsonl results/comparison.png
+```
+
+Comparison used in report 1: the alignment sweep of the paper's Fig 2 with the parameters of table S1 (`--table-s1`: attack of 120 time units, attack rate 1/3), 40 C++ runs per alignment strength (about 45 min on 8 cores), against the Python sweep of `report/data/sweep_control.jsonl` (see below):
+
+```bash
+python3 scripts/run_cpp.py local/PredatorPrey report/data/cpp_sweep.jsonl 0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,1.1,1.2,1.3,1.4,1.5,1.6 40 --table-s1
+python3 -m scripts.plot_cpp_sweep   # Welch test per alignment strength, report/figures/cpp_comparison.pdf
 ```
 
 C++ runs cannot be reproduced because the seed comes from the clock, so we compare means instead.

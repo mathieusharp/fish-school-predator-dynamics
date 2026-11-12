@@ -27,7 +27,7 @@ Paper: Klamser & Romanczuk (2021), PLoS Comput Biol 17(3): e1008832, "the paper"
 | Fig 1, model sketch | not made; `figures/snapshots.pdf` shows the school in the three phases | nice to have |
 | Figs 3–4, evolution of the alignment strength (ESS far above the transition, self-sorting, effect of the flee strength) | not done | not to reproduce, but to describe in the literature review |
 | S1–S6 Figs (forces, fitness gradients, robustness checks) | not done | no |
-| Python model checked against the original C++ code (issue #1) | done by Mathieu, **data and figure not in the repository** | yes, for the Methods (see [To do](#to-do)) |
+| Python model checked against the original C++ code (issue #1) | done: full sweep with Table S1 parameters, `data/cpp_sweep.jsonl`, `figures/cpp_comparison.pdf` (see [Validation against the C++ code](#validation-against-the-c-code)) | yes, done |
 | Literature review and planned approach (required by the assignment) | not in the repository | yes (Introduction) |
 
 ## Setup (for the Methods)
@@ -97,6 +97,15 @@ Table S1 of the paper, with their name in `predprey/params.py`:
 - **Structure**: the school is most spread out near the transition. The IID rises from 12.3 at μ_alg = 0 to a maximum of 15.3 at 0.9, then falls to 10.2 at 1.6 (ordered schools are the most compact). It also varies most between runs there (s.d. 4.1 at 0.9, against 0.3 at 0). The nearest-neighbour distance is largest at μ_alg = 0.7 – 0.8 (0.79, against 0.72 in disorder and 0.66 in order).
 - **Correlation with γc** (Pearson): for the IID, R = −0.80 over the 17 means, −0.12 over the 680 runs, 0.01 on average within one alignment strength. For the nearest-neighbour distance: R = −0.70 over the 17 means, −0.11 over the 680 runs. Both are associations **across alignment strengths only**: at a fixed alignment strength, the correlation is about 0. Do not present them as a run-by-run effect.
 
+### Validation against the C++ code
+
+Same sweep as ours, run with the original code (`scripts/run_cpp.py --table-s1`, 17 alignment strengths × 40 runs, 2026-11-11); compared with `python3 -m scripts.plot_cpp_sweep` (Welch test per alignment strength).
+
+- **Polarization**: differs at p < 0.05 at 1 of the 17 alignment strengths (0.9, p = 0.03), as expected by chance. χ peaks at 0.9 for C++ (bootstrap: 0.8–0.9 in 94 % of resamples) and 0.8 for Python.
+- **Capture rate**: same mean over all runs, 0.161 (C++) against 0.163 (Python), p = 0.42. 4 of 17 points at p < 0.05 (0.5, 0.6, 0.7, 1.6), none after Bonferroni correction (p < 0.003). Python is lower than C++ at 0.6–0.7 (about 0.02, 2.5 s.e.) with the same polarization there.
+- **Dip in the C++ code alone**: lowest at 0.8–1.0 (0.147–0.149). Over 0.8–1.0 it is 13 % below the disordered phase (p = 1·10⁻⁶) and 7 % below the ordered phase (p = 0.02); Python gives 13 % and 13 % over the same window. A low C++ point at 1.6 (0.150) makes the ordered side shallower. The window 0.6–0.8 used above shows no significant dip in C++: the report uses 0.8–1.0.
+- So the published code reproduces the group optimum and the level of γc of our model (about 1.8 × the paper's Fig 2C).
+
 ### Figure captions (drafts)
 
 **`figures/snapshots.pdf`**: School of 400 prey when the predator (red) appears, after an equilibration of 200 time units, in one run of each phase: disordered (A, μ_alg = 0.2), transition (B, μ_alg = 0.8) and ordered (C, μ_alg = 1.6). Arrows give the heading of each prey; Φ is the polarization of that run (the mean over 40 runs at μ_alg = 0.8 is 0.27). Same seed and same scale in the three panels.
@@ -119,13 +128,13 @@ Values "read off Fig 2" were read by the audit from the colour maps along D ≈ 
 
 ## Points for the Discussion
 
-- **Level of the capture rate.** Our γc is about 1.8 times that of Fig 2C, with the same shape. Mathieu ran the original C++ code with the Table S1 parameters (comment in #5): C++ 0.169 ± 0.016 (10 runs), 0.157 ± 0.007 (20 runs), 0.161 ± 0.015 (10 runs) at μ_alg = 0.1, 0.8 and 1.5 (± to be defined by Mathieu: s.d. or s.e.), against **0.177, 0.143 and 0.166** in our sweep at the same points. (The comment in #5 lists 0.172, 0.146 and 0.171 for Python: those are the means of the three phases, not of these points.) So the published code gives our level: the gap is between the published code and the paper's figure, not in our reimplementation. The C++ points are too few to show the dip by themselves. Possible causes: how γc is counted in the paper (the attack rate "also accounts for handling time"; removal of caught prey not stated); the different normalisation of Eq S7 explains only 5–8 %. A normalisation by 200 instead of 120 time units would give a ratio of 1.67, close to ours, but this is a guess we cannot test.
+- **Level of the capture rate.** Our γc is about 1.8 times that of Fig 2C, with the same shape. The full C++ sweep with the Table S1 parameters gives the same mean level as ours (0.161 against 0.163, see [Validation against the C++ code](#validation-against-the-c-code)), so the gap is between the published code and the paper's figure, not in our reimplementation. Possible causes: how γc is counted in the paper (the attack rate "also accounts for handling time"; removal of caught prey not stated); the different normalisation of Eq S7 explains only 5–8 %. A normalisation by 200 instead of 120 time units would give a ratio of 1.67, close to ours, but this is a guess we cannot test.
 - **Escape ratio.** Lower than the paper in the ordered phase, and noisy (errors of about 0.05 on values of about 0.1). 40 runs per point are enough for γc but not for the shape of R_esc.
 - **Inset of Fig 2C.** The IID anticorrelates with γc across alignment strengths (R = −0.80; paper −0.69), but not within one alignment strength (R ≈ 0): schools are more spread out near the transition and are caught less there, but at a given alignment strength a more spread out school is not caught less. The association may come from a common cause (the alignment strength) rather than from the structure itself; the paper does not say whether its correlation holds within one parameter point. The paper's R = −0.69 is probably computed over its whole (μ_alg, D) map; ours is over one slice, so the values are not strictly comparable.
 - **One slice of the phase diagram.** We only test D = 0.5.
 - **Model as implemented vs paper equations.** Neighbour counter, target selection, pursuit force, two-state predator (see Setup): we follow the C++ code, which produced the paper's figures. The neighbour counter roughly doubles the social forces compared with the printed equations.
 - **One measurement per run.** Φ and the distances are measured once, when the predator appears, after 200 time units from an ordered start. Near the transition the school may not have fully relaxed (critical slowing down, discussed in S1 Text, Sec. V.2). χ from 40 single snapshots has a relative error of about 25 %.
-- **Choice of windows.** The transition window 0.6–0.8 was chosen after seeing the data; the result holds for a window centred on the paper's transition (see Results).
+- **Choice of windows.** The transition window 0.6–0.8 was chosen after seeing the data; the result holds for a window centred on the paper's transition (see Results), which is the one used in the report (0.8–1.0) because it also holds for the C++ code.
 
 ## Reproduce
 
@@ -134,6 +143,8 @@ From the repository root, with the package installed (README):
 ```bash
 python3 -m scripts.sweep_alignment report/data/sweep_control.jsonl 0:1.6:0.1 40   # about 3 h on 8 cores
 python3 -m scripts.report_figures --snapshots   # figures, sweep_summary.csv and the numbers above (about 1 min)
+python3 scripts/run_cpp.py local/PredatorPrey report/data/cpp_sweep.jsonl 0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,1.1,1.2,1.3,1.4,1.5,1.6 40 --table-s1   # C++ sweep, about 45 min on 8 cores
+python3 -m scripts.plot_cpp_sweep   # validation figure and Welch tests
 ```
 
 The sweep in `data/` was made at commit c3addae and the IID added by `scripts/add_iid.py` (`data/versions.txt`); a new sweep records the IID directly. Without `--snapshots`, `report_figures` only redraws the sweep figure.
@@ -142,7 +153,5 @@ The animation of the README (`docs/run.gif`) uses the default parameters of the 
 
 ## To do
 
-- **Mathieu (#1):** add the comparison with the C++ code: `results/cpp.jsonl` and `results/py.jsonl` in `report/data/`, `results/comparison.png` in `report/figures/` (PDF if possible), its main numbers in this file (transition of the C++ code, Welch tests), and the script used for the Table S1 runs of #5 (`scripts/run_cpp.py` has attack 60 and γ_a = 1 written in). Say whether the ± are s.d. or s.e. This is our validation of the reimplementation; without it, the Methods can only claim the three points above.
-- **Introduction:** literature review and planned approach (assignment), including Figs 3–4 of the paper (evolution away from criticality).
 - **Optional:** information transfer of Fig 2B; effect of the neighbour counter (#2).
 - The PDF and LaTeX source of each report go in `report/` too (Moodle instructions).

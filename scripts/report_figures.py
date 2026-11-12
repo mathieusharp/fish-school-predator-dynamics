@@ -36,6 +36,13 @@ PHASES = {"disordered": (0.0, 0.2), "transition": (0.6, 0.8), "ordered": (1.4, 1
 
 plt.rcParams.update(
     {
+        # Helvetica (its free clone Nimbus Sans), as in the captions of the PNAS template
+        "font.family": "sans-serif",
+        "font.sans-serif": ["Nimbus Sans", "Helvetica", "Arial", "DejaVu Sans"],
+        "mathtext.fontset": "custom",
+        "mathtext.rm": "Nimbus Sans",
+        "mathtext.it": "Nimbus Sans:italic",
+        "mathtext.bf": "Nimbus Sans:bold",
         "font.size": 8,
         "axes.titlesize": 8,
         "axes.labelsize": 8,
@@ -45,7 +52,7 @@ plt.rcParams.update(
         "ytick.color": MUTED,
         "axes.spines.top": False,
         "axes.spines.right": False,
-        "pdf.fonttype": 42,  # editable text in the PDF
+        "pdf.fonttype": 3,  # Nimbus Sans is OpenType (CFF): Type 42 embeds it with a wrong font type
     }
 )
 
@@ -224,13 +231,13 @@ def sweep_figure(rows, data):
     algs = col["alg_strength"]
     transition = algs[np.argmax(col["susceptibility"])]
     line = {"marker": "o", "ms": 3.5, "lw": 1.5, "capsize": 2, "elinewidth": 0.8}
-    fig, ax = plt.subplots(3, 2, figsize=(7, 7), layout="constrained")
+    fig, ax = plt.subplots(2, 3, figsize=(7.2, 4.4), layout="constrained")
     ax = ax.ravel()
 
     ax[0].errorbar(algs, col["polarization"], col["polarization_sd"], color=BLUE, **line)
-    panel(ax[0], "A", "Polarization when the predator appears", "polarization Φ")
+    panel(ax[0], "A", "Polarization", r"$\Phi$ (± s.d.)")
     ax[1].plot(algs, col["susceptibility"], color=BLUE, marker="o", ms=3.5, lw=1.5)
-    panel(ax[1], "B", "Susceptibility", "χ")
+    panel(ax[1], "B", "Susceptibility", r"$\chi$")
     # the two vertical lines are named once, where panel A is empty
     xaxis = ax[0].get_xaxis_transform()
     ax[0].text(transition, 0.95, "χ max ", color=MAGENTA, transform=xaxis, ha="right")
@@ -242,22 +249,26 @@ def sweep_figure(rows, data):
         col["capture_rate_nf_se"],
         color=MUTED,
         ls="--",
-        label="not fleeing (control), γc,NF",
+        label=r"not fleeing (control), $\gamma_{c,\mathrm{NF}}$",
         **(line | {"marker": "s"}),
     )
     ax[2].errorbar(
-        algs, col["capture_rate"], col["capture_rate_se"], color=ORANGE, label="fleeing, γc", **line
+        algs,
+        col["capture_rate"],
+        col["capture_rate_se"],
+        color=ORANGE,
+        label=r"fleeing, $\gamma_c$",
+        **line,
     )
-    ax[2].set_ylim(0.11, None)  # room for the legend below the curves
+    ax[2].set_ylim(0.10, None)  # room for the legend below the curves
     ax[2].legend(loc="lower left", frameon=False, fontsize=7)
-    panel(ax[2], "C", "Capture rate", "captures per time unit γc")
+    panel(ax[2], "C", "Capture rate", r"capture rate (± s.e.)")
     ax[3].errorbar(algs, col["escape_ratio"], col["escape_ratio_se"], color=ORANGE, **line)
     ax[3].axhline(0, color=MUTED, lw=0.8)
-    panel(ax[3], "D", "Escape ratio", "R_esc = 1 − γc / γc,NF")
+    panel(ax[3], "D", "Escape ratio", r"$R_\mathrm{esc} = 1 - \gamma_c / \gamma_{c,\mathrm{NF}}$")
 
     ax[4].errorbar(algs, col["iid"], col["iid_sd"], color=BLUE, **line)
-    panel(ax[4], "E", "Inter-individual distance", "IID (units of r_d)")
-    r = np.corrcoef(col["capture_rate"], col["iid"])[0, 1]
+    panel(ax[4], "E", "Inter-individual distance", r"IID (units of $r_d$)")
     ax[5].scatter(
         col["iid"],
         col["capture_rate"],
@@ -270,7 +281,7 @@ def sweep_figure(rows, data):
     for a, x, y in zip(algs, col["iid"], col["capture_rate"], strict=True):
         if a in (0.0, 0.8, 1.6):
             ax[5].annotate(
-                f"μ_alg = {a:g}",
+                rf"$\mu_\mathrm{{alg}}$ = {a:g}",
                 (x, y),
                 xytext=(0, 7) if a == 1.6 else (-5, 0),
                 textcoords="offset points",
@@ -279,12 +290,12 @@ def sweep_figure(rows, data):
                 ha="left" if a == 1.6 else "right",
                 va="center",
             )
-    panel(ax[5], "F", f"Capture rate vs IID, {len(algs)} means (R = {r:.2f})", "γc")
-    ax[5].set_xlabel("inter-individual distance IID")
+    panel(ax[5], "F", "Capture rate vs IID", "capture rate")
+    ax[5].set_xlabel(r"IID (units of $r_d$)")
 
     for k in range(5):
         mark_transition(ax[k], transition)
-        ax[k].set_xlabel("alignment strength μ_alg")
+        ax[k].set_xlabel(r"alignment strength $\mu_\mathrm{alg}$")
     for ext in ("pdf", "png"):
         fig.savefig(f"{FIGURES}sweep.{ext}", dpi=200)
     plt.close(fig)
