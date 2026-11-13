@@ -1,15 +1,12 @@
 \documentclass[9pt,twoside]{pnas-new}
 
-\articletype{Collective behavior}
+\articletype{Collective Behavior}
 \templatetype{pnasmathematics}
 
-% no "DRAFT" watermark, no placeholder footer, no affiliation box in the margin
-% (it overlaps the full-width text); the affiliation goes in the dates line instead
 \setboolean{displaywatermark}{false}
 \makeatletter
 \def\PNAS@dropfoot[#1]#2{}
 \patchcmd{\ps@firststyle}{\fancyfoot[L]}{\PNAS@dropfoot[L]}{}{\PackageError{report}{footer patch failed}{}}
-% no line numbers (the template draws a fixed column in the header, not aligned with the text)
 \apptocmd{\ps@firststyle}{\fancyhead{}}{}{\PackageError{report}{header patch failed}{}}
 \patchcmd{\ps@firststyle}{\thepage of}{\thepage\ of}{}{\PackageError{report}{page patch failed}{}}
 \def\PNAS@linecountsecpageLO{}\def\PNAS@linecountsecpageRO{}
@@ -20,7 +17,7 @@
 \makeatother
 
 \raggedbottom
-\urlstyle{same} % URLs in the text font
+\urlstyle{same}
 \AtBeginDocument{\hypersetup{urlcolor=black}}
 \DefineJournalException{Journal of the Royal Society Interface}{J. R. Soc. Interface}
 \DefineJournalException{Royal Society Open Science}{R. Soc. Open Sci.}
@@ -31,8 +28,6 @@
 
 \author{Mathieu Bonnet, Loup Benois and Alexandre Peret}
 
-
-\leadauthor{Bonnet}
 
 \begin{abstract}
 Fish schools under attack are thought to benefit from being close to the transition between
@@ -296,8 +291,8 @@ when the predator appears, which may be too early for schools near the transitio
 
 
 
-Code, data, figure scripts and the source of this report are available on
-\href{https://github.com/mathieusharp/fish-school-predator-dynamics}{GitHub}.
+Code, data, figure scripts and the source of this report are available on github 
+\href{https://github.com/mathieusharp/fish-school-predator-dynamics}{(here)}.
 
 \bibliography{references}
 
