@@ -376,8 +376,8 @@ if __name__ == "__main__":
     rows = summarize(data, p)
     write_csv(rows, f"{DATA}sweep_summary.csv")
     print_numbers(data, rows)
-    from scripts.plot_cpp_sweep import curves  # imports this module, so imported here
-    from scripts.plot_cpp_sweep import load as load_cpp
+    from scripts.validate_cpp import curves  # imports this module, so imported here
+    from scripts.validate_cpp import load as load_cpp
 
     sweep_figure(rows, data, curves(load_cpp(f"{DATA}cpp_sweep.jsonl", "dead")))
     if "--snapshots" in sys.argv:

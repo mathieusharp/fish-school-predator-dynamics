@@ -136,7 +136,7 @@ Comparison used in report 1: the alignment sweep of the paper's Fig 2 with the p
 
 ```bash
 python3 scripts/run_cpp.py local/PredatorPrey report/data/cpp_sweep.jsonl 0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,1.1,1.2,1.3,1.4,1.5,1.6 40 --table-s1
-python3 -m scripts.plot_cpp_sweep   # Welch test per alignment strength, report/figures/cpp_comparison.pdf
+python3 -m scripts.validate_cpp     # Welch test per alignment strength against the C++ code
 ```
 
 C++ runs cannot be reproduced because the seed comes from the clock, so we compare means instead.

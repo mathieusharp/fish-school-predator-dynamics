@@ -27,7 +27,7 @@ Paper: Klamser & Romanczuk (2021), PLoS Comput Biol 17(3): e1008832, "the paper"
 | Fig 1, model sketch | not made; `figures/snapshots.pdf` shows the school in the three phases | nice to have |
 | Figs 3–4, evolution of the alignment strength (ESS far above the transition, self-sorting, effect of the flee strength) | not done | not to reproduce, but to describe in the literature review |
 | S1–S6 Figs (forces, fitness gradients, robustness checks) | not done | no |
-| Python model checked against the original C++ code (issue #1) | done: full sweep with Table S1 parameters, `data/cpp_sweep.jsonl`, `figures/cpp_comparison.pdf` (see [Validation against the C++ code](#validation-against-the-c-code)) | yes, done |
+| Python model checked against the original C++ code (issue #1) | done: full sweep with Table S1 parameters, `data/cpp_sweep.jsonl`, green curves of `figures/sweep.pdf` (see [Validation against the C++ code](#validation-against-the-c-code)) | yes, done |
 | Literature review and planned approach (required by the assignment) | not in the repository | yes (Introduction) |
 
 ## Setup (for the Methods)
@@ -99,7 +99,7 @@ Table S1 of the paper, with their name in `predprey/params.py`:
 
 ### Validation against the C++ code
 
-Same sweep as ours, run with the original code (`scripts/run_cpp.py --table-s1`, 17 alignment strengths × 40 runs, 2026-11-11); compared with `python3 -m scripts.plot_cpp_sweep` (Welch test per alignment strength).
+Same sweep as ours, run with the original code (`scripts/run_cpp.py --table-s1`, 17 alignment strengths × 40 runs, 2026-11-11); compared with `python3 -m scripts.validate_cpp` (Welch test per alignment strength).
 
 - **Polarization**: differs at p < 0.05 at 1 of the 17 alignment strengths (0.9, p = 0.03), as expected by chance. χ peaks at 0.9 for C++ (bootstrap: 0.8–0.9 in 94 % of resamples) and 0.8 for Python.
 - **Capture rate**: same mean over all runs, 0.161 (C++) against 0.163 (Python), p = 0.42. 4 of 17 points at p < 0.05 (0.5, 0.6, 0.7, 1.6), none after Bonferroni correction (p < 0.003). Python is lower than C++ at 0.6–0.7 (about 0.02, 2.5 s.e.) with the same polarization there.
@@ -144,7 +144,7 @@ From the repository root, with the package installed (README):
 python3 -m scripts.sweep_alignment report/data/sweep_control.jsonl 0:1.6:0.1 40   # about 3 h on 8 cores
 python3 -m scripts.report_figures --snapshots   # figures, sweep_summary.csv and the numbers above (about 1 min)
 python3 scripts/run_cpp.py local/PredatorPrey report/data/cpp_sweep.jsonl 0,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1,1.1,1.2,1.3,1.4,1.5,1.6 40 --table-s1   # C++ sweep, about 45 min on 8 cores
-python3 -m scripts.plot_cpp_sweep   # validation figure and Welch tests
+python3 -m scripts.validate_cpp     # Welch tests against the C++ code
 ```
 
 The sweep in `data/` was made at commit c3addae and the IID added by `scripts/add_iid.py` (`data/versions.txt`); a new sweep records the IID directly. Without `--snapshots`, `report_figures` only redraws the sweep figure.
