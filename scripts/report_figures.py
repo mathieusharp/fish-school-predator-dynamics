@@ -20,8 +20,8 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.ticker import MultipleLocator  # noqa: E402
 import numpy as np  # noqa: E402
+from matplotlib.ticker import MultipleLocator  # noqa: E402
 from scipy.stats import ttest_ind, ttest_rel  # noqa: E402
 
 from predprey.params import Params  # noqa: E402
@@ -272,7 +272,12 @@ def sweep_figure(rows, data, cpp):
         label=r"not fleeing (control), $\gamma_{c,\mathrm{NF}}$",
     )
     curve(
-        ax[2], algs, col["capture_rate"], col["capture_rate_se"], ORANGE, label=r"fleeing, $\gamma_c$"
+        ax[2],
+        algs,
+        col["capture_rate"],
+        col["capture_rate_se"],
+        ORANGE,
+        label=r"fleeing, $\gamma_c$",
     )
     cpp_line(ax[2], algs, cpp["rate"], r"fleeing, C++ code")
     ax[2].set_ylim(0.105, None)  # room for the legend below the curves
