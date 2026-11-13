@@ -14,7 +14,7 @@ The paper simulates a 2D school of 400 fish attacked by one predator.
 - **Predator.** It is twice as fast as the prey. It appears from an almost random direction, heads for the school, then for the prey in front of it, and catches prey with a probability that grows when it gets closer.
 - **Main results.** The predator catches the fewest fish when the school is at the transition, halfway between disordered and fully aligned. This is not because the school escapes better there, but because it is more spread out. When the alignment strength of each fish is left to evolve, the fish end up far in the ordered phase: the transition is best for the group, but evolution does not keep it there.
 
-![A predator (red) attacking a school of 400 prey](docs/run.gif)
+<p align="center"><img src="docs/run.gif" alt="A predator (red) attacking a school of 400 prey"></p>
 
 *One run of our Python model with the default parameters of the C++ code (alignment strength 2, ordered school, seed 1), made with `mkdir -p results && python3 -m scripts.animate` (writes `results/run.gif`).*
 
