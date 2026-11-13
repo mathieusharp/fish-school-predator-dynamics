@@ -77,8 +77,8 @@ These results are obtained with one specific predator. It swims twice as fast as
 a weighted center of the prey in front of it, and always follows the same rule. Real predators choose the direction of their attack (marlins most often attack sardines from the
 side~\cite{bartashevich2024}), combine tactics such as splitting a school
 before isolating a prey~\cite{demsar2015}, and get confused when many prey move around
-them~\cite{olson2013}. Would a different predator change which alignment protects a school best? This
-does not seem to have been tested. The opposite question is open as well. The high
+them~\cite{olson2013}. Would a different predator change which alignment protects a school best? The opposite question is
+also open. The high
 responsiveness at criticality does not explain the low capture rate, but it could be useful for an
 agent that wants to steer a school without breaking it, like a sheepdog with a flock~\cite{strombom2014}
 or a group of robots with fish, to lead them away from dangers or along a given
@@ -207,7 +207,8 @@ runs per value. For validation, the C++ code is run with the same values.
 ($\pm$ s.d.). (B) Susceptibility. (C) Capture rate of the fleeing school $\gamma_c$ and of the
 control school that does not flee $\gamma_{c,\mathrm{NF}}$ ($\pm$ s.e.; the y-axis does not start at 0). (D) Escape ratio
 ($\pm$ bootstrap s.e.). (E) Inter-individual distance when the predator appears ($\pm$ s.d.).
-(F) Capture rate against the IID, one point per alignment strength ($R = -0.80$). Dash-dotted line: maximum of $\chi$; dotted line: transition given by the paper. Phases compared in
+(F) Capture rate against the IID, one point per alignment strength ($R = -0.80$). Shaded bands: s.d. or s.e.,
+as given for each panel. Green lines in A--C: original C++ code, same parameters and number of runs. Dash-dotted line: maximum of $\chi$; dotted line: transition given by the paper. Phases compared in
 the text: disordered ($\mu_{\mathrm{alg}} = 0$--$0.2$), transition ($0.8$--$1.0$), ordered ($1.4$--$1.6$).}
 \label{fig:sweep}
 \end{figure}
@@ -216,7 +217,7 @@ the text: disordered ($\mu_{\mathrm{alg}} = 0$--$0.2$), transition ($0.8$--$1.0$
 \paragraph*{Planned extensions}
 Each extension only changes the agent that perturbs the school, and this agent only uses local
 information. Apart from the move to 3D, the prey rules and the sweep over $\mu_{\mathrm{alg}}$ stay the same, and the new predators are also
-tested on the control school, so each new agent can be compared directly with the reproduced model (Table~\ref{tab:plan}).
+tested on the control school, so each new agent can be compared directly with the reproduced model.
 
 For the second report, the predator will be changed in two ways, each aimed at one of the two
 effects found in the reproduction. First, it will be confused by many prey, as in the models of Olson et
@@ -235,7 +236,7 @@ its attack, including from below or above, since the escape of a school depends 
 direction~\cite{bartashevich2024}.
 
 For the final report, the predator becomes a shepherd that moves the school to a target region.
-This is the most original part of the project: as seen above, it is not known whether one agent can
+It is not known whether one agent can
 steer a large aligned school, and which alignment strength makes this easiest. The
 rules of Str\"ombom et al.~\cite{strombom2014} (collect the group when it is spread out, drive it
 when it is grouped) will be adapted to fish, with a shepherd that only sees the fish near it. The main change is that the school keeps swimming and
@@ -245,20 +246,6 @@ school splits into will be measured as a function of alignment. The shepherd is 
 transition, where the school responds strongly but stays in one group. One shepherd will also be compared
 with the robot groups of Van Havermaet et al.~\cite{vanhavermaet2024}.
 
-\begin{table}[t]
-\centering
-\caption{Plan of the project.}
-\label{tab:plan}
-\begin{tabular}{llll}
-\toprule
-Step & Agent & Main measure & Report \\
-\midrule
-1 & Original predator (2D) & Capture rate, escape ratio & Nov.~13, 2026 \\
-2 & Confused or intercepting predator (2D); attack direction (3D) & Capture rate, escape ratio & Dec.~11, 2026 \\
-3 & Shepherd & Fraction at target, time, splits & Jan.~8, 2027 \\
-\bottomrule
-\end{tabular}
-\end{table}
 
 \section*{Results}
 
@@ -266,7 +253,7 @@ Step & Agent & Main measure & Report \\
 C++ runs cannot be replayed, so the two codes are compared on average. The polarization
 curves overlap, and the susceptibility peaks one step apart. The mean capture rate is also the same:
 0.161 for the C++ code and 0.163 for the Python code. After correction for multiple tests, no
-alignment strength shows a significant difference (\texttt{report/figures/cpp\_comparison.pdf}).
+alignment strength shows a significant difference (Fig.~\ref{fig:sweep}A--C).
 The only clear difference is that the dip of the C++ code is less deep on the ordered side.
 
 \paragraph*{Order and responsiveness}
@@ -311,8 +298,8 @@ when the predator appears, which may be too early for schools near the transitio
 
 
 
-Code, data, figure scripts and the source of this report are available at\\
-\url{https://github.com/mathieusharp/fish-school-predator-dynamics}.
+Code, data, figure scripts and the source of this report are available on
+\href{https://github.com/mathieusharp/fish-school-predator-dynamics}{GitHub}.
 
 \bibliography{references}
 

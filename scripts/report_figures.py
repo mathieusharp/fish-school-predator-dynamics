@@ -20,6 +20,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.ticker import MultipleLocator  # noqa: E402
 import numpy as np  # noqa: E402
 from scipy.stats import ttest_ind, ttest_rel  # noqa: E402
 
@@ -30,7 +31,10 @@ from scripts.sweep_alignment import TABLE_S1  # noqa: E402
 
 DATA, FIGURES = "report/data/", "report/figures/"
 INK, MUTED, GRID, AXIS = "#0b0b0b", "#52514e", "#e6e5e0", "#c8c7c0"
-BLUE, ORANGE, MAGENTA, RED = "#2a78d6", "#eb6834", "#c03fc0", "#d62728"
+# Okabe-Ito palette (colour-blind safe): blue = Python, vermillion = fleeing,
+# green = original C++ code, reddish purple (darkened) = transition
+BLUE, ORANGE, MAGENTA, RED = "#0072b2", "#d55e00", "#b5528c", "#d62728"
+GREEN = "#009e73"
 # alignment strengths grouped by phase, as in issue #5
 PHASES = {"disordered": (0.0, 0.2), "transition": (0.6, 0.8), "ordered": (1.4, 1.6)}
 
@@ -226,48 +230,67 @@ def panel(ax, letter, title, ylabel):
     ax.set_axisbelow(True)
 
 
-def sweep_figure(rows, data):
+def curve(ax, algs, mean, err, color, ls="-", marker="o", label=None):
+    """Mean as a line with small markers, and a light band for mean ± err."""
+    ax.fill_between(algs, mean - err, mean + err, color=color, alpha=0.18, lw=0, zorder=1)
+    ax.plot(algs, mean, color=color, ls=ls, lw=1.5, marker=marker, ms=2.5, zorder=2, label=label)
+
+
+def cpp_line(ax, algs, mean, label=None):
+    """Original C++ code: thin line only, so that it does not hide the Python band."""
+    ax.plot(algs, mean, color=GREEN, lw=1, zorder=3, label=label)
+
+
+def sweep_figure(rows, data, cpp):
     col = {k: np.array([r[k] for r in rows]) for k in rows[0]}
     algs = col["alg_strength"]
     transition = algs[np.argmax(col["susceptibility"])]
-    line = {"marker": "o", "ms": 3.5, "lw": 1.5, "capsize": 2, "elinewidth": 0.8}
     fig, ax = plt.subplots(2, 3, figsize=(7.2, 4.4), layout="constrained")
     ax = ax.ravel()
 
-    ax[0].errorbar(algs, col["polarization"], col["polarization_sd"], color=BLUE, **line)
+    curve(ax[0], algs, col["polarization"], col["polarization_sd"], BLUE, label="Python")
+    cpp_line(ax[0], algs, cpp["pol"], "C++ code")
+    ax[0].legend(loc="center left", bbox_to_anchor=(0, 0.62), frameon=False, fontsize=7)
     panel(ax[0], "A", "Polarization", r"$\Phi$ (± s.d.)")
-    ax[1].plot(algs, col["susceptibility"], color=BLUE, marker="o", ms=3.5, lw=1.5)
+    ax[1].plot(algs, col["susceptibility"], color=BLUE, marker="o", ms=2.5, lw=1.5, zorder=2)
+    cpp_line(ax[1], algs, cpp["chi"])
     panel(ax[1], "B", "Susceptibility", r"$\chi$")
+    ax[1].yaxis.set_major_locator(MultipleLocator(4))  # the pdf backend otherwise picks 2.5
     # the two vertical lines are named once, where panel A is empty
     xaxis = ax[0].get_xaxis_transform()
     ax[0].text(transition, 0.95, "χ max ", color=MAGENTA, transform=xaxis, ha="right")
     ax[0].text(PAPER_TRANSITION, 0.05, " paper ≈ 0.9", color=MUTED, transform=xaxis)
 
-    ax[2].errorbar(
+    curve(
+        ax[2],
         algs,
         col["capture_rate_nf"],
         col["capture_rate_nf_se"],
-        color=MUTED,
+        MUTED,
         ls="--",
+        marker="s",
         label=r"not fleeing (control), $\gamma_{c,\mathrm{NF}}$",
-        **(line | {"marker": "s"}),
     )
-    ax[2].errorbar(
-        algs,
-        col["capture_rate"],
-        col["capture_rate_se"],
-        color=ORANGE,
-        label=r"fleeing, $\gamma_c$",
-        **line,
+    curve(
+        ax[2], algs, col["capture_rate"], col["capture_rate_se"], ORANGE, label=r"fleeing, $\gamma_c$"
     )
-    ax[2].set_ylim(0.10, None)  # room for the legend below the curves
-    ax[2].legend(loc="lower left", frameon=False, fontsize=7)
+    cpp_line(ax[2], algs, cpp["rate"], r"fleeing, C++ code")
+    ax[2].set_ylim(0.105, None)  # room for the legend below the curves
+    ax[2].legend(
+        loc="lower left",
+        frameon=False,
+        fontsize=6.5,
+        handlelength=1.6,
+        labelspacing=0.25,
+        borderaxespad=0.1,
+    )
     panel(ax[2], "C", "Capture rate", r"capture rate (± s.e.)")
-    ax[3].errorbar(algs, col["escape_ratio"], col["escape_ratio_se"], color=ORANGE, **line)
+    ax[2].yaxis.set_major_locator(MultipleLocator(0.04))
+    curve(ax[3], algs, col["escape_ratio"], col["escape_ratio_se"], ORANGE)
     ax[3].axhline(0, color=MUTED, lw=0.8)
     panel(ax[3], "D", "Escape ratio", r"$R_\mathrm{esc} = 1 - \gamma_c / \gamma_{c,\mathrm{NF}}$")
 
-    ax[4].errorbar(algs, col["iid"], col["iid_sd"], color=BLUE, **line)
+    curve(ax[4], algs, col["iid"], col["iid_sd"], BLUE)
     panel(ax[4], "E", "Inter-individual distance", r"IID (units of $r_d$)")
     ax[5].scatter(
         col["iid"],
@@ -283,14 +306,15 @@ def sweep_figure(rows, data):
             ax[5].annotate(
                 rf"$\mu_\mathrm{{alg}}$ = {a:g}",
                 (x, y),
-                xytext={1.6: (0, 7), 0.0: (-12, 12)}.get(a, (-5, 0)),
+                xytext={1.6: (5, 12), 0.0: (14, 12), 0.8: (-14, 2)}[a],
                 textcoords="offset points",
                 color=MUTED,
                 fontsize=7,
-                ha="left" if a == 1.6 else "right",
+                ha="right" if a == 0.8 else "left",
                 va="center",
-                arrowprops=dict(arrowstyle="-", color=MUTED, lw=0.5) if a == 0.0 else None,
+                arrowprops=dict(arrowstyle="-", color=MUTED, lw=0.5, shrinkA=1, shrinkB=3),
             )
+    ax[5].margins(y=0.15)  # room for the labels above the highest points
     panel(ax[5], "F", "Capture rate vs IID", "capture rate")
     ax[5].set_xlabel(r"IID (units of $r_d$)")
 
@@ -352,6 +376,9 @@ if __name__ == "__main__":
     rows = summarize(data, p)
     write_csv(rows, f"{DATA}sweep_summary.csv")
     print_numbers(data, rows)
-    sweep_figure(rows, data)
+    from scripts.plot_cpp_sweep import curves  # imports this module, so imported here
+    from scripts.plot_cpp_sweep import load as load_cpp
+
+    sweep_figure(rows, data, curves(load_cpp(f"{DATA}cpp_sweep.jsonl", "dead")))
     if "--snapshots" in sys.argv:
         snapshot_figure()
