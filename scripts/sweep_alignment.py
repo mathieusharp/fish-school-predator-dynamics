@@ -8,6 +8,13 @@ such as 0:1.6:0.1 (stop included). Runs use the parameters of table S1 of the pa
 and are spread over all cores. One JSON line is appended to OUT.jsonl per run, so an
 interrupted sweep can be restarted with the same command: finished runs are skipped.
 Run i of every alignment strength uses seed i. dim is 2 (default) or 3 (issue #10).
+
+Each run also attacks a non-fleeing copy of the school (control school, issue #4), which
+gives the escape ratio of Fig 2D, and records the structure of the school when the predator
+appears: inter-individual distance (mean over all pairs, inset of Fig 2C) and mean
+nearest-neighbour distance. Files written by older versions lack some of these keys: write
+to a new file rather than completing them (scripts/add_iid.py adds the inter-individual
+distance to a file that has all the others).
 """
 
 import json
@@ -33,7 +40,7 @@ def parse_algs(text):
 
 def run(args):
     alg, seed, dim = args
-    p = Params(dim=dim, alg_strength=alg, **TABLE_S1)
+    p = Params(dim=dim, alg_strength=alg, control=True, **TABLE_S1)
     r = simulate(p, seed=seed)
     return {
         "alg_strength": alg,
@@ -41,7 +48,11 @@ def run(args):
         "dim": dim,
         "captures": len(r["kills"]),
         "capture_rate": len(r["kills"]) / p.attack_time,  # gamma_c of the paper
+        "captures_nf": len(r["kills_nf"]),  # same school, not fleeing (issue #4)
+        "capture_rate_nf": len(r["kills_nf"]) / p.attack_time,  # gamma_c,NF
         "polarization_start": float(r["polarization_start"]),
+        "iid_start": float(r["iid_start"]),  # inset of Fig 2C
+        "nn_distance_start": float(r["nn_distance_start"]),
         "cluster_size": r["cluster_size"],
     }
 
@@ -54,6 +65,8 @@ if __name__ == "__main__":
     if os.path.exists(out_file):
         for line in open(out_file):
             r = json.loads(line)
+            if any(k not in r for k in ("captures_nf", "nn_distance_start", "iid_start")):
+                sys.exit(f"{out_file} was written by an older version: use a new file")
             done.add((r["alg_strength"], r["seed"]))
     todo = [(a, s, dim) for s in range(n_runs) for a in algs if (a, s) not in done]
     print(f"{len(todo)} runs to do, {len(done)} already in {out_file}")

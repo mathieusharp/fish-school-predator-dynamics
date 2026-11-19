@@ -1,5 +1,7 @@
 """Tests of the predprey package. Run from the repository root: python3 -m pytest"""
 
+from dataclasses import replace
+
 import numpy as np
 
 from predprey.geometry import (
@@ -14,7 +16,15 @@ from predprey.geometry import (
     unique_edges,
 )
 from predprey.params import Params
-from predprey.simulation import alignment_strengths, init_school, prey_step, simulate
+from predprey.simulation import (
+    alignment_strengths,
+    attack,
+    iid,
+    init_school,
+    nn_distance,
+    prey_step,
+    simulate,
+)
 
 
 def test_delaunay_edges_square_with_centre():
@@ -166,3 +176,49 @@ def test_simulate_3d():
     assert np.allclose(norm(a["pred_u"]), 1)
     # the predator starts outside the school, about pred_radius away
     assert np.nanmin(norm(a["prey_pos"][0] - a["pred_pos"][0])) > p.pred_radius / 2
+
+
+def test_control_school_leaves_the_attacked_school_unchanged():
+    p = Params(N=60, pred_time=5, attack_time=10, kill_rate=3.0)
+    a = simulate(p, seed=4)
+    b = simulate(replace(p, control=True), seed=4)
+    assert "kills_nf" not in a and "kills_nf" in b
+    assert np.array_equal(a["kills"], b["kills"])
+    assert np.array_equal(a["prey_pos"], b["prey_pos"], equal_nan=True)
+    assert np.array_equal(a["pred_pos"], b["pred_pos"])
+
+
+def test_control_school_starts_when_the_predator_appears_and_does_not_flee():
+    p = Params(N=60, pred_time=5, attack_time=10, kill_rate=3.0, control=True)
+    r = simulate(p, seed=4)
+    # first frame = prey (NaN outside the attacked cluster) and predator when it appears
+    pos, u = r["prey_pos"][0].copy(), r["prey_u"][0].copy()
+    cluster = np.flatnonzero(~np.isnan(pos[:, 0]))
+    twin_rng = np.random.default_rng(np.random.SeedSequence(4).spawn(1)[0])
+    kills, frames = attack(
+        pos,
+        u,
+        r["alg"],
+        cluster,
+        r["pred_pos"][0],
+        r["pred_u"][0],
+        replace(p, flee_strength=0.0),
+        twin_rng,
+        record=False,
+    )
+    assert np.array_equal(kills, r["kills_nf"])
+    assert frames["t"] == []
+
+
+def test_nn_distance():
+    grid = 2.0 * np.array([[i, j] for i in range(3) for j in range(3)], dtype=float)
+    assert np.isclose(nn_distance(grid), 2.0)
+    r = simulate(Params(N=50, pred_time=2, attack_time=1), seed=0)
+    assert 0 < r["nn_distance_start"] < 3
+
+
+def test_iid():
+    # three prey on a line, 1 and 2 apart: pairs at 1, 2 and 3
+    assert np.isclose(iid(np.array([[0.0, 0.0], [1.0, 0.0], [3.0, 0.0]])), 2.0)
+    r = simulate(Params(N=50, pred_time=2, attack_time=1), seed=0)
+    assert r["iid_start"] > r["nn_distance_start"]
