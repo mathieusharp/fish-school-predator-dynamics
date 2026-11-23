@@ -1,7 +1,7 @@
 """Captures and polarization against alignment strength, to reproduce Fig 2 of the paper (issue #5).
 
 Usage, from the repository root:
-    python3 -m scripts.sweep_alignment OUT.jsonl ALG_STRENGTHS [n_runs [dim]]
+    python3 -m scripts.sweep_alignment OUT.jsonl ALG_STRENGTHS [n_runs [dim [NAME=VALUE ...]]]
 
 ALG_STRENGTHS is a comma-separated list such as 0.5,1,2 or a range start:stop:step
 such as 0:1.6:0.1 (stop included). Runs use the parameters of table S1 of the paper
@@ -9,6 +9,8 @@ and are spread over all cores. One JSON line is appended to OUT.jsonl per run, s
 interrupted sweep can be restarted with the same command: finished runs are skipped.
 Run i of every alignment strength uses seed i. dim is 2 (default) or 3 (issue #10).
 Each line also records the commit of the code ("-dirty" if predprey/ or scripts/ were modified).
+NAME=VALUE sets other fields of Params (VALUE in JSON: 2.5, true, false), for example
+surface=true pred_below=true; they are saved in each line. Use one OUT.jsonl per setting.
 
 Each run also attacks a non-fleeing copy of the school (control school, issue #4), which
 gives the escape ratio of Fig 2D, and records the structure of the school when the predator
@@ -78,14 +80,22 @@ if __name__ == "__main__":
     out_file, algs = sys.argv[1], parse_algs(sys.argv[2])
     n_runs = int(sys.argv[3]) if len(sys.argv) > 3 else 40
     dim = int(sys.argv[4]) if len(sys.argv) > 4 else 2
+    extra = {}
+    for arg in sys.argv[5:]:
+        name, value = arg.split("=", 1)
+        if name not in Params.__dataclass_fields__:
+            sys.exit(f"unknown parameter {name}")
+        extra[name] = json.loads(value)
     done = set()
     if os.path.exists(out_file):
         for line in open(out_file):
             r = json.loads(line)
             if any(k not in r for k in ("captures_nf", "nn_distance_start", "iid_start")):
                 sys.exit(f"{out_file} was written by an older version: use a new file")
+            if any(r.get(name) != value for name, value in extra.items()):
+                sys.exit(f"{out_file} was written with other parameters: use a new file")
             done.add((r["alg_strength"], r["seed"]))
-    todo = [(a, s, dim) for s in range(n_runs) for a in algs if (a, s) not in done]
+    todo = [(a, s, dim, extra) for s in range(n_runs) for a in algs if (a, s) not in done]
     version = code_version()
     print(f"{len(todo)} runs to do, {len(done)} already in {out_file}, code {version}")
     if version.endswith("-dirty"):
