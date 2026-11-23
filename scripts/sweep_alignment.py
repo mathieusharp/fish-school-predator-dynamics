@@ -8,6 +8,7 @@ such as 0:1.6:0.1 (stop included). Runs use the parameters of table S1 of the pa
 and are spread over all cores. One JSON line is appended to OUT.jsonl per run, so an
 interrupted sweep can be restarted with the same command: finished runs are skipped.
 Run i of every alignment strength uses seed i. dim is 2 (default) or 3 (issue #10).
+Each line also records the commit of the code ("-dirty" if predprey/ or scripts/ were modified).
 
 Each run also attacks a non-fleeing copy of the school (control school, issue #4), which
 gives the escape ratio of Fig 2D, and records the structure of the school when the predator
@@ -19,6 +20,7 @@ distance to a file that has all the others).
 
 import json
 import os
+import subprocess
 import sys
 from multiprocessing import Pool
 
@@ -36,6 +38,18 @@ def parse_algs(text):
         start, stop, step = (float(x) for x in text.split(":"))
         return [round(a, 6) for a in np.arange(start, stop + step / 2, step)]
     return [float(a) for a in text.split(",")]
+
+
+def code_version():
+    """Commit of the code that runs the sweep, with -dirty if predprey/ or scripts/ are modified."""
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True, check=True
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+    clean = subprocess.run(["git", "diff", "--quiet", "HEAD", "--", "predprey", "scripts"])
+    return commit if clean.returncode == 0 else commit + "-dirty"
 
 
 def run(args):
@@ -72,12 +86,15 @@ if __name__ == "__main__":
                 sys.exit(f"{out_file} was written by an older version: use a new file")
             done.add((r["alg_strength"], r["seed"]))
     todo = [(a, s, dim) for s in range(n_runs) for a in algs if (a, s) not in done]
-    print(f"{len(todo)} runs to do, {len(done)} already in {out_file}")
+    version = code_version()
+    print(f"{len(todo)} runs to do, {len(done)} already in {out_file}, code {version}")
+    if version.endswith("-dirty"):
+        print("warning: uncommitted changes, results may not be reproducible from a commit")
 
     os.makedirs(os.path.dirname(out_file) or ".", exist_ok=True)
     with Pool() as pool, open(out_file, "a") as f:
         for k, r in enumerate(pool.imap_unordered(run, todo), 1):
-            f.write(json.dumps(r) + "\n")
+            f.write(json.dumps({**r, "commit": version}) + "\n")
             f.flush()
             print(
                 f"{k}/{len(todo)}  alg {r['alg_strength']:<5} captures {r['captures']}", flush=True

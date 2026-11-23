@@ -18,7 +18,7 @@ from multiprocessing import Pool
 
 import numpy as np
 
-from scripts.sweep_alignment import parse_algs, run
+from scripts.sweep_alignment import code_version, parse_algs, run
 
 if __name__ == "__main__":
     out_file, algs, angles = sys.argv[1], parse_algs(sys.argv[2]), parse_algs(sys.argv[3])
@@ -37,12 +37,15 @@ if __name__ == "__main__":
         for a in algs
         if (a, g, s) not in done
     ]
-    print(f"{len(todo)} runs to do, {len(done)} already in {out_file}")
+    version = code_version()
+    print(f"{len(todo)} runs to do, {len(done)} already in {out_file}, code {version}")
+    if version.endswith("-dirty"):
+        print("warning: uncommitted changes, results may not be reproducible from a commit")
 
     os.makedirs(os.path.dirname(out_file) or ".", exist_ok=True)
     with Pool() as pool, open(out_file, "a") as f:
         for k, r in enumerate(pool.imap_unordered(run, todo), 1):
-            f.write(json.dumps(r) + "\n")
+            f.write(json.dumps({**r, "commit": version}) + "\n")
             f.flush()
             angle = np.degrees(r["pred_angle"])
             print(
