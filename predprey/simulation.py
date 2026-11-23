@@ -26,6 +26,7 @@ from .geometry import (
     turn,
     turn_towards,
     unit,
+    voronoi_neighbours,
 )
 from .params import Params
 
@@ -281,8 +282,7 @@ def attack(pos, u, alg, cluster, pred_x, pred_u, p, rng, record=True):
         pos[idx], u[idx] = P, U
 
         # the predator only sees its Voronoi neighbours in front of it
-        edges = delaunay_edges(np.vstack([P, pred_x]))
-        nn = edges[edges[:, 1] == len(idx), 0]
+        nn = voronoi_neighbours(P, pred_x)
         nn = nn[(P[nn] - pred_x) @ pred_u > 0]
         d = norm(P[nn] - pred_x)
 
