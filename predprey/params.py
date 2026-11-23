@@ -45,6 +45,11 @@ class Params:
     kill_range: float = 3.0
     kill_rate: float = 1.0
 
+    # surface (3D only, issue #14)
+    surface: bool = False  # sea surface above the school during the attack
+    surface_depth: float = 2.0  # from the highest prey to the surface when the predator appears
+    pred_below: bool = False  # with a surface: the predator attacks from straight below
+
     # clusters
     cludist: float = 6.0  # two prey closer than this are in the same cluster
 

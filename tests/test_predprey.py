@@ -24,6 +24,7 @@ from predprey.simulation import (
     init_school,
     nn_distance,
     prey_step,
+    reflect,
     simulate,
 )
 
@@ -191,6 +192,34 @@ def test_simulate_3d():
     assert np.allclose(norm(a["pred_u"]), 1)
     # the predator starts outside the school, about pred_radius away
     assert np.nanmin(norm(a["prey_pos"][0] - a["pred_pos"][0])) > p.pred_radius / 2
+
+
+def test_reflect_mirrors_below_the_surface():
+    surface = (np.array([0.0, 0.0, 1.0]), 1.0)
+    pos = np.array([[0.0, 0.0, 1.5], [0.0, 0.0, 0.5]])
+    u = np.array([[0.0, 0.6, 0.8], [0.0, 0.6, 0.8]])
+    pos2, u2 = reflect(pos, u, surface)
+    assert np.allclose(pos2, [[0, 0, 0.5], [0, 0, 0.5]])  # only the first one crossed
+    assert np.allclose(u2, [[0, 0.6, -0.8], [0, 0.6, 0.8]])
+    x, v = reflect(np.array([0.0, 0.0, 2.0]), np.array([0.0, 0.0, 1.0]), surface)  # one agent
+    assert np.allclose(x, [0, 0, 0]) and np.allclose(v, [0, 0, -1])
+
+
+def test_surface():
+    for below in (False, True):
+        p = Params(dim=3, N=50, pred_time=3, attack_time=4, surface=True, pred_below=below)
+        r = simulate(p, seed=2)
+        up, level = r["surface"]
+        assert np.isclose(norm(up), 1)
+        depth = level - r["prey_pos"] @ up
+        assert np.nanmin(depth) >= 0  # no prey above the surface
+        pred_depth = level - r["pred_pos"][0] @ up
+        school_depth = np.nanmean(depth[0])
+        if below:  # starts below the school, heading up
+            assert pred_depth > school_depth + p.pred_radius / 2
+            assert np.allclose(r["pred_u"][0], up)
+        else:  # starts at the depth of the school
+            assert abs(pred_depth - school_depth) < p.pred_radius
 
 
 def test_control_school_leaves_the_attacked_school_unchanged():
