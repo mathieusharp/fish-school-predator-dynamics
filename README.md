@@ -33,17 +33,18 @@ Each step changes only the agent that perturbs the school. This agent only uses 
 
 **1. Reproduction (report 1, done).** We rewrote the model in Python ([`predprey/`](predprey/)), checked it against the original C++ code, and reproduced the group optimum of the paper (Fig 2 at noise D = 0.5). See [Results so far](#results-so-far).
 
-**2. Improved predator: confusion and interception (report 2).**
+**2. Improved predator: confusion, attack direction and surface (report 2).**
 
-Our reproduction shows two effects. On the ordered side of the transition, the low capture rate comes from the structure of the school (it is more spread out). On the disordered side, it comes from fleeing. Each change of the predator targets one of them. Both predators only use the prey they can see.
+Our reproduction shows two effects. On the ordered side of the transition, the low capture rate comes from the structure of the school (it is more spread out). On the disordered side, it comes from fleeing. Each change of the predator targets one of them. Both predators only use the prey they can see. Interception is set aside for now: fish pursuit predators do not seem to intercept (bluefish use deviated pure pursuit, [McHenry et al., 2019](https://doi.org/10.1098/rspb.2018.2934)).
 
 | Change | What the predator does | Effect targeted | Expected |
 |---|---|---|---|
 | **Confusion** ([Olson et al., 2013](https://doi.org/10.1098/rsif.2013.0305); [Demšar et al., 2015](https://doi.org/10.1016/j.ecolmodel.2015.02.018)) | Its chance of making a catch decreases when many prey are within a confusion radius, counted among all the prey it sees (not only its Voronoi neighbours). In the original model this chance does not depend on their number. | Structure | Confusion protects dense schools, and ordered schools are the densest, so the minimum should move towards the ordered phase. |
 | **Interception** | It heads for the predicted position of the prey it hunts (from their velocity) instead of their current position. | Fleeing | Fleeing prey are caught more easily, so the advantage of fleeing on the disordered side should shrink. |
 
-- *Measure.* Capture rate and escape ratio against alignment strength, with the original predator as reference. Each change is first tested alone, then both together.
+- *Measure.* Capture rate and escape ratio against alignment strength, with the original predator as reference.
 - *3D.* The comparison is then made in three dimensions: headings become 3D unit vectors (the code already stores directions as vectors, not angles) and neighbours are computed with a 3D Voronoi diagram. We check whether the capture-rate minimum is still at the transition in 3D. We also vary the attack direction relative to the school heading (front, side, rear), in 2D and 3D: drone videos of marlins attacking sardines show that the escape of the school ("fountain effect") depends on it ([Bartashevich et al., 2024](https://doi.org/10.1038/s42003-024-07267-2)).
+- *Surface.* In 3D, the sea surface is added as a wall the prey cannot cross, and the predator can attack from below. Schools do not usually swim just below the surface, but many predators (dolphins, tuna, marlin) drive them up against it into bait balls.
 
 **3. Shepherd (report 3, the most original part).**
 - *What changes.* The predator no longer tries to catch fish. It tries to move the whole school to a target region without breaking it apart.
@@ -55,7 +56,7 @@ Our reproduction shows two effects. On the ordered side of the transition, the l
 | Report | Date | Content | [Milestone](https://github.com/mathieusharp/fish-school-predator-dynamics/milestones) |
 |---|---|---|---|
 | 1 | 13 Nov 2026 | Literature review, Python reimplementation, validation against C++, reproduction of the group optimum | Report 1 |
-| 2 | 11 Dec 2026 | Confused or intercepting predator, in 2D then 3D (with attack direction) | Report 2 |
+| 2 | 11 Dec 2026 | Confused predator, in 2D then 3D, attack direction and surface | Report 2 |
 | 3 | 8 Jan 2027 | Shepherd, final report, video | Report 3 (final) |
 
 ## Background
