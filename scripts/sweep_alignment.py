@@ -39,10 +39,13 @@ def parse_algs(text):
 
 
 def run(args):
-    alg, seed, dim = args
-    p = Params(dim=dim, alg_strength=alg, control=True, **TABLE_S1)
+    """args: (alg_strength, seed, dim) or (alg_strength, seed, dim, other Params values)."""
+    alg, seed, dim, *extra = args
+    extra = extra[0] if extra else {}
+    p = Params(dim=dim, alg_strength=alg, control=True, **TABLE_S1, **extra)
     r = simulate(p, seed=seed)
     return {
+        **extra,
         "alg_strength": alg,
         "seed": seed,
         "dim": dim,
