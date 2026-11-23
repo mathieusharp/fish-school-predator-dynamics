@@ -12,6 +12,7 @@ from predprey.geometry import (
     ray_to_alpha_shape,
     turn,
     unique_edges,
+    voronoi_neighbours,
 )
 from predprey.params import Params
 from predprey.simulation import (
@@ -40,6 +41,19 @@ def test_unique_edges_matches_numpy():
     expected, first = np.unique(edges, axis=0, return_index=True)
     assert np.array_equal(unique_edges(edges, 50), first)
     assert np.array_equal(edges[unique_edges(edges, 50)], expected)
+
+
+def test_voronoi_neighbours_match_delaunay_edges():
+    rng = np.random.default_rng(0)
+    for spread in (0.5, 5, 30):  # q inside, at the edge of, and far from the points
+        points = rng.normal(0, 4, (200, 2))
+        q = rng.normal(0, spread, 2)
+        edges = delaunay_edges(np.vstack([points, q]))
+        assert np.array_equal(voronoi_neighbours(points, q), edges[edges[:, 1] == 200, 0])
+    # q on one of the points, and too few points: falls back to the triangulation
+    edges = delaunay_edges(np.vstack([points, points[0]]))
+    assert np.array_equal(voronoi_neighbours(points, points[0]), edges[edges[:, 1] == 200, 0])
+    assert np.array_equal(voronoi_neighbours(points[:2], np.zeros(2)), [0, 1])
 
 
 def test_turn_rotates_and_keeps_unit_length():

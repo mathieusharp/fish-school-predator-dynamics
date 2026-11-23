@@ -7,7 +7,7 @@ so that the code can later be extended to 3D.
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.csgraph import connected_components
-from scipy.spatial import Delaunay, QhullError, cKDTree
+from scipy.spatial import ConvexHull, Delaunay, QhullError, cKDTree
 
 
 def delaunay_edges(points):
@@ -29,7 +29,33 @@ def delaunay_edges(points):
     s = tri.simplices
     edges = np.concatenate([s[:, [0, 1]], s[:, [1, 2]], s[:, [2, 0]]])
     edges.sort(axis=1)
-    return edges[unique_edges(edges, n)]
+    # same result as edges[unique_edges(edges, n)], but sorting the keys is faster than argsort
+    keys = np.sort(edges[:, 0].astype(np.int64) * n + edges[:, 1])
+    keys = keys[np.concatenate([[True], keys[1:] != keys[:-1]])]
+    return np.column_stack([keys // n, keys % n])
+
+
+def voronoi_neighbours(points, q):
+    """Indices (sorted) of the points that are Voronoi neighbours of q in points + [q].
+
+    Same result as the Delaunay edges of np.vstack([points, q]) that end at q, but faster:
+    after an inversion centred on q (p -> (p - q) / |p - q|^2), a sphere through q becomes a
+    plane, so p is a neighbour of q (empty sphere through p and q) exactly when its image is a
+    vertex of the convex hull of the images and of q (the origin). A hull is much cheaper
+    than a triangulation.
+    """
+    n, dim = points.shape
+    r = points - q
+    d2 = np.sum(r * r, axis=1)
+    if n <= dim or (d2 == 0).any():  # too few points, or q on a point: full triangulation
+        edges = delaunay_edges(np.vstack([points, q]))
+        return edges[edges[:, 1] == n, 0]
+    try:
+        v = ConvexHull(np.vstack([r / d2[:, None], np.zeros(dim)])).vertices
+    except QhullError:  # degenerate configuration
+        edges = delaunay_edges(np.vstack([points, q]))
+        return edges[edges[:, 1] == n, 0]
+    return np.sort(v[v < n])
 
 
 def unique_edges(edges, n):
