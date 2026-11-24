@@ -153,7 +153,7 @@ The animation of the README (`docs/run.gif`) uses the default parameters of the 
 
 ## Report 2 (in progress): 3D
 
-Same protocol as the 2D sweep (Table S1, D = 0.5, control school), in 3D: `data/sweep_3d.jsonl`, 40 runs for each μ_alg from 0 to 4 by 0.25 (`python3 -m scripts.sweep_alignment OUT.jsonl 0:4:0.25 40 3`); figure `figures/sweep_3d.png` (`python3 -m scripts.plot_sweep data/sweep_3d.jsonl figures/sweep_3d.png`). The first 340 runs predate the `commit` field; all runs give the same results as commit 2895c56 (the speed-ups of d66e1fc are exact).
+Same protocol as the 2D sweep (Table S1, D = 0.5, control school), in 3D: `data/sweep_3d.jsonl`, 40 runs for each μ_alg from 0 to 4 by 0.25 (`python3 -m scripts.sweep_alignment OUT.jsonl 0:4:0.25 40 3`); figure `figures/sweep_3d.png` (`python3 -m scripts.plot_sweep data/sweep_3d.jsonl figures/sweep_3d.png`). The first 340 runs (seeds 0–19) were made with the simulation code of 5b09b19 and have no `commit` field; the others record theirs. Both versions give bit-identical runs (checked for d66e1fc and c328049).
 
 - **Transition further right in 3D:** susceptibility maximum at μ_alg = 1.75 (2D: 0.9); polarization from 0.05 to 0.81. Likely cause: in 3D each prey averages over about 15 Voronoi neighbours, while the C++ counter used in 2D counts only part of them (#2), which makes alignment stronger. To check.
 - **Group optimum still there, shallower:** capture rate 0.107 at the transition (μ_alg 1.75–2.25, pooled) against 0.118 on the disordered side (0–0.5; 9.5 % lower, Welch p = 0.003) and 0.120 on the ordered side (3.5–4; 10.8 % lower, p = 0.001). Lowest single point at 2.25 (0.103 ± 0.004).
