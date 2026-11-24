@@ -69,6 +69,9 @@ def run(args):
         "capture_rate": len(r["kills"]) / p.attack_time,  # gamma_c of the paper
         "captures_nf": len(r["kills_nf"]),  # same school, not fleeing (issue #4)
         "capture_rate_nf": len(r["kills_nf"]) / p.attack_time,  # gamma_c,NF
+        # times of the captures since the predator appeared, e.g. to study the first attack
+        "kill_times": [round(float(t), 2) for t in r["kills"][:, 0]],
+        "kill_times_nf": [round(float(t), 2) for t in r["kills_nf"][:, 0]],
         "polarization_start": float(r["polarization_start"]),
         "iid_start": float(r["iid_start"]),  # inset of Fig 2C
         "nn_distance_start": float(r["nn_distance_start"]),
