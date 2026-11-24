@@ -160,6 +160,12 @@ Same protocol as the 2D sweep (Table S1, D = 0.5, control school), in 3D: `data/
 - **Escape ratio peaks at the transition** (0.34 ± 0.03 at 2.25), unlike 2D where it has no peak. The control school is caught more often when ordered (γc,NF 0.14 → 0.17).
 - **Spacing no longer explains captures:** correlation between capture rate and nearest-neighbour distance R = −0.15 over the points (2D: the dip on the ordered side came from the looser school).
 
+### Attack direction in 2D (#14)
+
+`data/angle_2d.jsonl`: μ_alg 0.3, 0.9, 2 × attack angle 0 (front) to 180° (behind) by 45° (±10° noise), 20 runs each (`python3 -m scripts.sweep_angle OUT.jsonl 0.3,0.9,2 0:180:45 20 2`); figure `figures/angle_2d.png` (`python3 -m scripts.plot_angle data/angle_2d.jsonl figures/angle_2d.png`).
+
+- **No effect of the attack angle** on the first attack: time to first capture 5–10 and captures in the first 20 time units 2.4–4.0 for all angles, differences within about 2 standard errors and without trend. Over the whole attack (120 time units) no effect either. One sentence in the report at most, unless 3D shows something.
+
 ## To do
 
 - **Optional:** information transfer of Fig 2B; effect of the neighbour counter (#2).
