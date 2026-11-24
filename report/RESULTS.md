@@ -166,6 +166,13 @@ Same protocol as the 2D sweep (Table S1, D = 0.5, control school), in 3D: `data/
 
 - **No effect of the attack angle** on the first attack: time to first capture 5–10 and captures in the first 20 time units 2.4–4.0 for all angles, differences within about 2 standard errors and without trend. Over the whole attack (120 time units) no effect either. One sentence in the report at most, unless 3D shows something.
 
+### Surface, predator from below (#14)
+
+`data/surface_below.jsonl`: 3D, surface 2 units above the top of the school, predator attacking from below; μ_alg 0 to 4 by 0.5, 20 runs each (`python3 -m scripts.sweep_alignment OUT.jsonl 0:4:0.5 20 3 surface=true pred_below=true`); figure `figures/surface_below.png` against the 3D sweep without surface (`python3 -m scripts.plot_sweeps OUT.png "no surface=data/sweep_3d.jsonl" "surface, from below=data/surface_below.jsonl"`). Code 67c4da5 (64 runs) and ae77905 (116 runs), same simulation code.
+
+- **No clear effect of the surface:** capture rate and escape ratio within error bars of the sweep without surface at almost every point; lowest capture rate at 2.5 (0.104 ± 0.007), near the transition; polarization unchanged. With 20 runs the dip at the transition is not significant on its own.
+- The sweep with a horizontal attack and the surface (`surface=true` only) is unfinished (24/180 runs), to run later.
+
 ## To do
 
 - **Optional:** information transfer of Fig 2B; effect of the neighbour counter (#2).
