@@ -20,6 +20,7 @@ from predprey.params import Params
 from predprey.simulation import (
     alignment_strengths,
     attack,
+    create_predator,
     iid,
     init_school,
     nn_distance,
@@ -252,6 +253,78 @@ def test_control_school_starts_when_the_predator_appears_and_does_not_flee():
     )
     assert np.array_equal(kills, r["kills_nf"])
     assert frames["t"] == []
+
+
+def test_create_predator_attack_angle_and_distance():
+    # pred_angle = 0: from the front (heading against the school), pi: from behind
+    for dim in (2, 3):
+        for angle in (0, np.pi / 2, np.pi):
+            p = Params(dim=dim, N=200, pred_angle=angle, pred_angle_noise=0)
+            rng = np.random.default_rng(1)
+            pos, u = init_school(p, rng)
+            x, v = create_predator(pos, np.arange(p.N), u[0], p, rng)
+            assert np.isclose(norm(v), 1)
+            assert np.isclose(v @ u[0], -np.cos(angle))
+            assert (pos.mean(axis=0) - x) @ v > 0  # heading towards the school
+            assert abs(norm(pos - x).min() - p.pred_radius) < 1  # pred_radius from its edge
+
+
+def test_create_predator_with_surface():
+    p = Params(dim=3, N=200, pred_angle=np.pi / 2, pred_angle_noise=0)
+    rng = np.random.default_rng(1)
+    pos, u = init_school(p, rng)
+    up = np.array([0.0, 0.0, 1.0])
+    heading = np.array([1.0, 0.0, 0.0])
+    x, v = create_predator(pos, np.arange(p.N), heading, p, rng, up=up)
+    assert np.isclose(v @ up, 0)  # horizontal attack, from the side
+    assert np.isclose(v @ heading, 0)
+    x, v = create_predator(pos, np.arange(p.N), heading, replace(p, pred_below=True), rng, up=up)
+    assert np.allclose(v, up)  # from straight below, heading up
+    assert x @ up < pos[:, 2].min()
+
+
+def one_attack_step(prey, p, seed):
+    """Kills after one step of attack() with the predator at the origin heading along x.
+
+    Prey given by their positions; four more prey far behind the predator complete the
+    triangulation. The prey only move by speed0 * dt (0.02) before the catch.
+    """
+    p = replace(p, Dphi=0.0, attack_time=p.dt)
+    behind = np.array([[-20.0, 5.0], [-20.0, -5.0], [-25.0, 0.0], [-30.0, 2.0]])
+    pos = np.vstack([prey, behind])
+    u = np.tile([1.0, 0.0], (len(pos), 1))
+    kills, _ = attack(
+        pos,
+        u,
+        np.zeros(len(pos)),
+        np.arange(len(pos)),
+        np.zeros(2),
+        np.array([1.0, 0.0]),
+        p,
+        np.random.default_rng(seed),
+        record=False,
+    )
+    return kills[:, 1].astype(int)
+
+
+def test_catch_only_in_front_and_in_reach():
+    p = Params(kill_rate=1e6)  # any prey that can be caught is caught
+    prey = np.array([[1.0, 0.0], [-1.0, 0.5], [0.0, p.kill_range + 0.5]])
+    # in front and in reach / behind / out of reach
+    assert list(one_attack_step(prey, p, seed=0)) == [0]
+
+
+def test_catch_probability_is_shared_between_prey_in_reach():
+    # one prey at distance d: probability (kill_range - d) / kill_range * kill_rate * dt
+    p = Params()
+    p = replace(p, kill_rate=0.75 / p.dt)  # 0.5 for one prey at d = 1
+    one = np.array([[1.0, 0.0]])
+    two = np.array([[np.cos(0.3), np.sin(0.3)], [np.cos(0.3), -np.sin(0.3)]])  # both at d = 1
+    trials = 2000
+    rate_one = sum(len(one_attack_step(one, p, s)) for s in range(trials)) / trials
+    rate_two = sum(len(one_attack_step(two, p, s)) for s in range(trials)) / (2 * trials)
+    assert abs(rate_one - 0.5) < 0.04
+    assert abs(rate_two - 0.25) < 0.04  # shared: half the chance each
 
 
 def test_nn_distance():
