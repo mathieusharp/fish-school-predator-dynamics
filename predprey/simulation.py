@@ -21,8 +21,10 @@ from .geometry import (
     largest_cluster,
     norm,
     perpendicular,
+    perpendicular_part,
     ray_to_alpha_shape,
     turn,
+    turn_towards,
     unit,
     voronoi_neighbours,
 )
@@ -30,7 +32,26 @@ from .params import Params
 
 
 def init_school(p, rng):
-    """Prey on concentric circles with a small random shift, all heading the same way (C++: IC=3)."""
+    """Prey on concentric circles with a small random shift, all heading the same way (C++: IC=3).
+
+    In 3D, concentric spheres with about one prey per unit area, in a random direction.
+    """
+    if p.dim == 3:
+        pos, radius, n_done = [], 1, 0
+        while n_done < p.N:
+            m = min(max(4, round(4 * np.pi * radius**2)), p.N - n_done)
+            # points spread evenly on the sphere (Fibonacci lattice)
+            k = np.arange(m) + 0.5
+            z = 1 - 2 * k / m
+            phi = np.pi * (1 + 5**0.5) * k
+            r_xy = np.sqrt(1 - z**2)
+            shell = np.column_stack([r_xy * np.cos(phi), r_xy * np.sin(phi), z])
+            pos.append(p.rep_range * radius * shell)
+            n_done += m
+            radius += 1
+        pos = np.concatenate(pos)[rng.permutation(p.N)] + 0.8 * p.rep_range * rng.random((p.N, 3))
+        u = np.tile(unit(rng.standard_normal(3)), (p.N, 1))
+        return pos, u
     theta = 2 * np.pi * rng.random()
     order = rng.permutation(p.N)
     pos = np.zeros((p.N, 2))
@@ -70,9 +91,15 @@ def alignment_strengths(p, rng):
 
 
 def move(pos, u, force, speed, dt, noise=0.0):
-    """Turns the heading towards the force (only its perpendicular part counts), then moves."""
-    angle = (np.sum(force * perpendicular(u), axis=-1) * dt + noise) / speed
-    u = turn(u, angle)
+    """Turns the heading towards the force (only its perpendicular part counts), then moves.
+
+    noise: random turn, one angle per agent in 2D, one vector perpendicular to u in 3D.
+    """
+    if u.shape[-1] == 2:
+        angle = (np.sum(force * perpendicular(u), axis=-1) * dt + noise) / speed
+        u = turn(u, angle)
+    else:  # same rule: the turn is a vector perpendicular to u instead of a signed angle
+        u = turn_towards(u, (perpendicular_part(force, u) * dt + noise) / speed)
     return pos + speed * u * dt, u
 
 
@@ -81,12 +108,36 @@ def sum_by(index, values, n):
     return np.column_stack([np.bincount(index, values[:, d], n) for d in range(values.shape[1])])
 
 
-def prey_step(pos, u, alg, p, rng, pred_pos=None):
-    """One Euler step for all prey. With a predator, its Voronoi neighbours flee."""
-    n = len(pos)
+def surface_force(pos, surface, p):
+    """Push away from the surface, as strong as the repulsion between two prey (issue #14).
+
+    surface = (up, level): unit vertical vector and height of the surface along it.
+    """
+    up, level = surface
+    depth = level - pos @ up
+    push = np.where(depth < p.rep_range, np.tanh(-p.rep_steepness * (p.rep_range - depth)), 0.0)
+    return -p.rep_strength * push[..., None] * up
+
+
+def reflect(pos, u, surface):
+    """Agents that crossed the surface are mirrored below it, heading included (hard wall)."""
+    up, level = surface
+    depth = level - pos @ up
+    pos = pos + 2 * np.minimum(depth, 0)[..., None] * up
+    u = np.where((depth < 0)[..., None], u - 2 * (u @ up)[..., None] * up, u)
+    return pos, u
+
+
+def prey_step(pos, u, alg, p, rng, pred_pos=None, surface=None):
+    """One Euler step for all prey. With a predator, its Voronoi neighbours flee.
+
+    With a surface (see surface_force), prey are pushed away from it and cannot cross it.
+    """
+    n, dim = pos.shape
     vel = p.speed0 * u
     points = pos if pred_pos is None else np.vstack([pos, pred_pos])
-    if p.cpp_neighbour_count:
+    cpp_count = p.cpp_neighbour_count and dim == 2  # no C++ code to follow in 3D
+    if cpp_count:
         edges, counted = delaunay_edges_counted(points, rng)
     else:
         edges = delaunay_edges(points)
@@ -102,7 +153,7 @@ def prey_step(pos, u, alg, p, rng, pred_pos=None):
     sum_dist = sum_by(both, np.concatenate([f_dist, -f_dist]), n)
     sum_alg = sum_by(both, np.concatenate([f_alg, -f_alg]), n)
 
-    if p.cpp_neighbour_count:
+    if cpp_count:
         # C++: forces are divided by a neighbour counter increased for only one end
         # of each Voronoi edge (see delaunay_edges_counted), not by the number of neighbours
         owner = counted[prey_prey]
@@ -116,17 +167,43 @@ def prey_step(pos, u, alg, p, rng, pred_pos=None):
     if pred_pos is not None:
         fleeing = edges[edges[:, 1] == n, 0]
         force[fleeing] += p.flee_strength * unit(pos[fleeing] - pred_pos)
+    if surface is not None:
+        force += surface_force(pos, surface, p)
 
-    noise = np.sqrt(2 * p.Dphi * p.dt) * rng.standard_normal(n)
-    return move(pos, u, force, p.speed0, p.dt, noise)
+    if dim == 2:
+        noise = np.sqrt(2 * p.Dphi * p.dt) * rng.standard_normal(n)
+    else:  # each of the two directions perpendicular to the heading gets the 2D noise
+        noise = perpendicular_part(np.sqrt(2 * p.Dphi * p.dt) * rng.standard_normal((n, 3)), u)
+    pos, u = move(pos, u, force, p.speed0, p.dt, noise)
+    if surface is not None:
+        pos, u = reflect(pos, u, surface)
+    return pos, u
 
 
-def create_predator(pos, cluster, heading, p, rng):
-    """Places the predator pred_radius away from the school, at a random angle (C++: CreatePredator)."""
-    direction = np.arctan2(heading[1], heading[0])
-    side = 1 if rng.uniform(-p.pred_angle_noise, p.pred_angle_noise) >= 0 else -1
-    angle = direction + side * (p.pred_angle + rng.uniform(-p.pred_angle_noise, p.pred_angle_noise))
-    u = -np.array([np.cos(angle), np.sin(angle)])  # pointing towards the school
+def create_predator(pos, cluster, heading, p, rng, up=None):
+    """Places the predator pred_radius away from the school, at a random angle (C++: CreatePredator).
+
+    In 3D, the angle to the school heading is drawn as in 2D, on a random side around it.
+    With a surface (up = vertical), the side is horizontal, or the predator starts straight
+    below the school if p.pred_below.
+    """
+    if len(heading) == 2:
+        direction = np.arctan2(heading[1], heading[0])
+        side = 1 if rng.uniform(-p.pred_angle_noise, p.pred_angle_noise) >= 0 else -1
+        angle = direction + side * (
+            p.pred_angle + rng.uniform(-p.pred_angle_noise, p.pred_angle_noise)
+        )
+        u = -np.array([np.cos(angle), np.sin(angle)])  # pointing towards the school
+    elif up is not None and p.pred_below:
+        u = up.copy()  # pointing up, towards the school
+    else:
+        h = unit(heading)
+        if up is None:
+            side = unit(perpendicular_part(rng.standard_normal(3), h))
+        else:  # horizontal, on a random side
+            side = unit(np.cross(h, up)) * (1 if rng.random() < 0.5 else -1)
+        angle = p.pred_angle + rng.uniform(-p.pred_angle_noise, p.pred_angle_noise)
+        u = -turn_towards(h, angle * side)
     school = pos[cluster]
     com = school.mean(axis=0)
     x = com - u * (np.abs((school - com) @ u).max() + 1)  # surely behind the school
@@ -169,7 +246,7 @@ def simulate(p=None, seed=None):
     best = None
     for _ in range(p.max_restarts):
         pos, u = init_school(p, rng)
-        heading = np.zeros(2)
+        heading = np.zeros(p.dim)
         for s in range(n_pred):
             if s == n_memory:
                 cluster = largest_cluster(pos, p.cludist)
@@ -185,10 +262,20 @@ def simulate(p=None, seed=None):
     nn_distance_start = nn_distance(pos[cluster])
     iid_start = iid(pos[cluster])
 
-    pred_x, pred_u = create_predator(pos, cluster, heading, p, rng)
+    surface = None
+    if p.surface:
+        if p.dim != 3:
+            raise ValueError("the surface needs dim = 3")
+        # the vertical is drawn perpendicular to the school heading, so that the school swims
+        # horizontally below the surface (free space has no vertical before the attack)
+        up = unit(perpendicular_part(rng.standard_normal(3), unit(heading)))
+        surface = (up, (pos[cluster] @ up).max() + p.surface_depth)
+    pred_x, pred_u = create_predator(
+        pos, cluster, heading, p, rng, None if surface is None else surface[0]
+    )
     if p.control:
         twin = pos.copy(), u.copy()  # attack() moves the prey in place
-    kills, frames = attack(pos, u, alg, cluster, pred_x, pred_u, p, rng)
+    kills, frames = attack(pos, u, alg, cluster, pred_x, pred_u, p, rng, surface=surface)
 
     result = {key: np.array(val) for key, val in frames.items()}
     result.update(
@@ -199,6 +286,7 @@ def simulate(p=None, seed=None):
         nn_distance_start=nn_distance_start,
         iid_start=iid_start,
         seed=seed,
+        surface=surface,
     )
     if p.control:
         # C++: dummy. Same prey and predator when the predator appears, but the prey do not
@@ -207,12 +295,12 @@ def simulate(p=None, seed=None):
         twin_rng = np.random.default_rng(seq.spawn(1)[0])
         twin_p = replace(p, flee_strength=0.0)
         result["kills_nf"], _ = attack(
-            *twin, alg, cluster, pred_x, pred_u, twin_p, twin_rng, record=False
+            *twin, alg, cluster, pred_x, pred_u, twin_p, twin_rng, record=False, surface=surface
         )
     return result
 
 
-def attack(pos, u, alg, cluster, pred_x, pred_u, p, rng, record=True):
+def attack(pos, u, alg, cluster, pred_x, pred_u, p, rng, record=True, surface=None):
     """Attack on the largest cluster only; the other prey are left out (C++: split_notInCluster).
 
     pos and u are changed in place. Returns the kills, one (time, prey index) row per
@@ -236,7 +324,7 @@ def attack(pos, u, alg, cluster, pred_x, pred_u, p, rng, record=True):
             frames["pred_pos"].append(pred_x)
             frames["pred_u"].append(pred_u)
 
-        P, U = prey_step(pos[idx], u[idx], alg[idx], p, rng, pred_x)
+        P, U = prey_step(pos[idx], u[idx], alg[idx], p, rng, pred_x, surface)
         pos[idx], u[idx] = P, U
 
         # the predator only sees its Voronoi neighbours in front of it
@@ -274,6 +362,8 @@ def attack(pos, u, alg, cluster, pred_x, pred_u, p, rng, record=True):
             target = pos[members if len(members) else idx].mean(axis=0)
         force = p.pred_strength * unit(target - pred_x)
         pred_x, pred_u = move(pred_x, pred_u, force, p.pred_speed, p.dt)
+        if surface is not None:
+            pred_x, pred_u = reflect(pred_x, pred_u, surface)
 
         for k in idx[nn[caught]]:
             kills.append((s * p.dt, k))

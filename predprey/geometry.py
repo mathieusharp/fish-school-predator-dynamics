@@ -1,8 +1,9 @@
 """Neighbours, clusters and other geometric helpers.
 
-Positions are arrays of shape (n, 2); directions are unit vectors, never angles,
-so that the code can later be extended to 3D.
+Positions are arrays of shape (n, 2) or (n, 3); directions are unit vectors, never angles.
 """
+
+from itertools import combinations
 
 import numpy as np
 from scipy.sparse import coo_matrix
@@ -12,8 +13,8 @@ from scipy.spatial import ConvexHull, Delaunay, QhullError, cKDTree
 
 def delaunay_edges(points):
     """Pairs (i, j), i < j, of Voronoi neighbours (= edges of the Delaunay triangulation)."""
-    n = len(points)
-    if n < 3:
+    n, dim = points.shape
+    if n <= dim:  # too few points for a triangulation: all are neighbours
         return np.array([(i, j) for i in range(n) for j in range(i + 1, n)], dtype=int).reshape(
             -1, 2
         )
@@ -26,8 +27,8 @@ def delaunay_edges(points):
             direction = points[-1] - points[0]
             order = np.argsort(points @ direction)
             return np.sort(np.column_stack([order[:-1], order[1:]]), axis=1)
-    s = tri.simplices
-    edges = np.concatenate([s[:, [0, 1]], s[:, [1, 2]], s[:, [2, 0]]])
+    s = tri.simplices  # triangles in 2D, tetrahedra in 3D
+    edges = np.concatenate([s[:, [a, b]] for a, b in combinations(range(dim + 1), 2)])
     edges.sort(axis=1)
     # same result as edges[unique_edges(edges, n)], but sorting the keys is faster than argsort
     keys = np.sort(edges[:, 0].astype(np.int64) * n + edges[:, 1])
@@ -121,6 +122,21 @@ def turn(u, angle):
     return unit(u * np.cos(angle) + perpendicular(u) * np.sin(angle))
 
 
+def perpendicular_part(v, u):
+    """Part of the vectors v perpendicular to the unit vectors u."""
+    return v - np.sum(v * u, axis=-1, keepdims=True) * u
+
+
+def turn_towards(u, w):
+    """Rotates the unit vectors u by the angle |w| towards w (w perpendicular to u, any dimension).
+
+    In 2D, with w = angle * perpendicular(u), this is turn(u, angle).
+    """
+    angle = norm(w)[..., None]
+    direction = np.divide(w, angle, out=np.zeros_like(w), where=angle > 0)
+    return unit(u * np.cos(angle) + direction * np.sin(angle))
+
+
 def cluster_labels(points, cludist):
     """Label of the cluster of each point (chains of points closer than cludist)."""
     n = len(points)
@@ -142,7 +158,11 @@ def ray_to_alpha_shape(points, origin, u, alpha_radius):
     Delaunay edges shorter than 2 * alpha_radius. Starting from outside the school,
     the first edge hit is on its boundary.
     Returns inf if the ray misses the school.
+    In 3D, the boundary is made of the Delaunay triangles whose edges are all shorter than
+    2 * alpha_radius.
     """
+    if points.shape[1] == 3:
+        return ray_to_alpha_shape_3d(points, origin, u, alpha_radius)
     edges = delaunay_edges(points)
     a, b = points[edges[:, 0]], points[edges[:, 1]]
     keep = norm(b - a) <= 2 * alpha_radius
@@ -155,4 +175,29 @@ def ray_to_alpha_shape(points, origin, u, alpha_radius):
         t = (ao[:, 0] * ab[:, 1] - ao[:, 1] * ab[:, 0]) / denom
         s = (ao[:, 0] * u[1] - ao[:, 1] * u[0]) / denom
     hit = (denom != 0) & (t > 0) & (s >= 0) & (s <= 1)
+    return t[hit].min() if hit.any() else np.inf
+
+
+def ray_to_alpha_shape_3d(points, origin, u, alpha_radius):
+    """3D version of ray_to_alpha_shape: first Delaunay triangle hit by the ray (Moller-Trumbore)."""
+    s = Delaunay(points).simplices
+    faces = np.concatenate([s[:, list(f)] for f in combinations(range(4), 3)])
+    a, b, c = points[faces[:, 0]], points[faces[:, 1]], points[faces[:, 2]]
+    short = (
+        (norm(b - a) <= 2 * alpha_radius)
+        & (norm(c - a) <= 2 * alpha_radius)
+        & (norm(c - b) <= 2 * alpha_radius)
+    )
+    a, b, c = a[short], b[short], c[short]
+    # solve origin + t * u = a + s * (b - a) + v * (c - a), with t > 0, s, v >= 0, s + v <= 1
+    ab, ac = b - a, c - a
+    pvec = np.cross(u, ac)
+    det = np.sum(ab * pvec, axis=1)
+    ao = origin - a
+    qvec = np.cross(ao, ab)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        s = np.sum(ao * pvec, axis=1) / det
+        v = (qvec @ u) / det
+        t = np.sum(ac * qvec, axis=1) / det
+    hit = (det != 0) & (t > 0) & (s >= 0) & (v >= 0) & (s + v <= 1)
     return t[hit].min() if hit.any() else np.inf

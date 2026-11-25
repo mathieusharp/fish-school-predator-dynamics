@@ -151,6 +151,28 @@ The sweep in `data/` was made at commit c3addae and the IID added by `scripts/ad
 
 The animation of the README (`docs/run.gif`) uses the default parameters of the C++ code (attack 60, γ_a = 1, μ_alg = 2), not those of Table S1: say so if it is shown.
 
+## Report 2 (in progress): 3D
+
+Same protocol as the 2D sweep (Table S1, D = 0.5, control school), in 3D: `data/sweep_3d.jsonl`, 40 runs for each μ_alg from 0 to 4 by 0.25 (`python3 -m scripts.sweep_alignment OUT.jsonl 0:4:0.25 40 3`); figure `figures/sweep_3d.png` (`python3 -m scripts.plot_sweep data/sweep_3d.jsonl figures/sweep_3d.png`). The first 340 runs (seeds 0–19) were made with the simulation code of 5b09b19 and have no `commit` field; the others record theirs. Both versions give bit-identical runs (checked for d66e1fc and c328049).
+
+- **Transition further right in 3D:** susceptibility maximum at μ_alg = 1.75 (2D: 0.9); polarization from 0.05 to 0.81. Likely cause: in 3D each prey averages over about 15 Voronoi neighbours, while the C++ counter used in 2D counts only part of them (#2), which makes alignment stronger. To check.
+- **Group optimum still there, shallower:** capture rate 0.107 at the transition (μ_alg 1.75–2.25, pooled) against 0.118 on the disordered side (0–0.5; 9.5 % lower, Welch p = 0.003) and 0.120 on the ordered side (3.5–4; 10.8 % lower, p = 0.001). Lowest single point at 2.25 (0.103 ± 0.004).
+- **Escape ratio peaks at the transition** (0.34 ± 0.03 at 2.25), unlike 2D where it has no peak. The control school is caught more often when ordered (γc,NF 0.14 → 0.17).
+- **Spacing no longer explains captures:** correlation between capture rate and nearest-neighbour distance R = −0.15 over the points (2D: the dip on the ordered side came from the looser school).
+
+### Attack direction in 2D (#14)
+
+`data/angle_2d.jsonl`: μ_alg 0.3, 0.9, 2 × attack angle 0 (front) to 180° (behind) by 45° (±10° noise), 20 runs each (`python3 -m scripts.sweep_angle OUT.jsonl 0.3,0.9,2 0:180:45 20 2`); figure `figures/angle_2d.png` (`python3 -m scripts.plot_angle data/angle_2d.jsonl figures/angle_2d.png`).
+
+- **No effect of the attack angle** on the first attack: time to first capture 5–10 and captures in the first 20 time units 2.4–4.0 for all angles, differences within about 2 standard errors and without trend. Over the whole attack (120 time units) no effect either. One sentence in the report at most, unless 3D shows something.
+
+### Surface (#14)
+
+3D, surface 2 units above the top of the school, μ_alg 0 to 4 by 0.5, 20 runs each, predator attacking horizontally (`data/surface_horiz.jsonl`, `surface=true`) or from below (`data/surface_below.jsonl`, `surface=true pred_below=true`), e.g. `python3 -m scripts.sweep_alignment OUT.jsonl 0:4:0.5 20 3 surface=true`. Figure `figures/surface.png` against the 3D sweep without surface (`python3 -m scripts.plot_sweeps OUT.png "no surface=data/sweep_3d.jsonl" "surface, horizontal=data/surface_horiz.jsonl" "surface, from below=data/surface_below.jsonl"`). Code 67c4da5, ae77905 and f366a61, same simulation code.
+
+- **No clear effect of the surface**, for either attack direction: capture rate and escape ratio within error bars of the sweep without surface at almost every point; polarization unchanged.
+- Lowest capture rate at 2.5 from below (0.104 ± 0.007), near the transition; with a horizontal attack the curve is flat between 0.5 and 3 (0.107–0.112) and higher at both ends (0.121 at 0, 0.126 at 4). With 20 runs neither dip is significant on its own.
+
 ## To do
 
 - **Optional:** information transfer of Fig 2B; effect of the neighbour counter (#2).

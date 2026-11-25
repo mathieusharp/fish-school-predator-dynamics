@@ -12,6 +12,7 @@ import numpy as np
 @dataclass
 class Params:
     # simulation
+    dim: int = 2  # 2 as in the paper, or 3 (issue #10)
     N: int = 400
     dt: float = 0.02
     output: float = 0.2  # time between two recorded frames
@@ -31,7 +32,7 @@ class Params:
     alg_sigma: float = 0.075  # C++: pava_sig, spread of alg_strength between prey
     flee_strength: float = 4.0
     cpp_neighbour_count: bool = (
-        True  # False: average over all neighbours, as in Eq 2 of the paper (issue #2)
+        True  # False: average over all neighbours, as in Eq 2 of the paper (issue #2). 2D only
     )
 
     # predator
@@ -43,6 +44,11 @@ class Params:
     pred_memory: float = 1.0  # C++: pred_memo_t, time over which the school heading is averaged
     kill_range: float = 3.0
     kill_rate: float = 1.0
+
+    # surface (3D only, issue #14)
+    surface: bool = False  # sea surface above the school during the attack
+    surface_depth: float = 2.0  # from the highest prey to the surface when the predator appears
+    pred_below: bool = False  # with a surface: the predator attacks from straight below
 
     # clusters
     cludist: float = 6.0  # two prey closer than this are in the same cluster

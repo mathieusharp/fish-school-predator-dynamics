@@ -9,8 +9,10 @@ from predprey.geometry import (
     delaunay_edges,
     largest_cluster,
     norm,
+    perpendicular,
     ray_to_alpha_shape,
     turn,
+    turn_towards,
     unique_edges,
     voronoi_neighbours,
 )
@@ -22,6 +24,7 @@ from predprey.simulation import (
     init_school,
     nn_distance,
     prey_step,
+    reflect,
     simulate,
 )
 
@@ -35,6 +38,15 @@ def test_delaunay_edges_square_with_centre():
     assert {tuple(e) for e in edges if 4 in e} == {(0, 4), (1, 4), (2, 4), (3, 4)}
 
 
+def test_delaunay_edges_3d_cube_with_centre():
+    corners = np.array([[x, y, z] for x in (0, 2) for y in (0, 2) for z in (0, 2)], dtype=float)
+    points = np.vstack([corners, [1, 1, 1]])
+    edges = delaunay_edges(points)
+    assert (edges[:, 0] < edges[:, 1]).all()
+    # the centre is a Voronoi neighbour of the eight corners
+    assert {tuple(e) for e in edges if 8 in e} == {(i, 8) for i in range(8)}
+
+
 def test_unique_edges_matches_numpy():
     rng = np.random.default_rng(0)
     edges = np.sort(rng.integers(0, 50, (500, 2)), axis=1)
@@ -45,15 +57,16 @@ def test_unique_edges_matches_numpy():
 
 def test_voronoi_neighbours_match_delaunay_edges():
     rng = np.random.default_rng(0)
-    for spread in (0.5, 5, 30):  # q inside, at the edge of, and far from the points
-        points = rng.normal(0, 4, (200, 2))
-        q = rng.normal(0, spread, 2)
-        edges = delaunay_edges(np.vstack([points, q]))
-        assert np.array_equal(voronoi_neighbours(points, q), edges[edges[:, 1] == 200, 0])
+    for dim in (2, 3):
+        for spread in (0.5, 5, 30):  # q inside, at the edge of, and far from the points
+            points = rng.normal(0, 4, (200, dim))
+            q = rng.normal(0, spread, dim)
+            edges = delaunay_edges(np.vstack([points, q]))
+            assert np.array_equal(voronoi_neighbours(points, q), edges[edges[:, 1] == 200, 0])
     # q on one of the points, and too few points: falls back to the triangulation
     edges = delaunay_edges(np.vstack([points, points[0]]))
     assert np.array_equal(voronoi_neighbours(points, points[0]), edges[edges[:, 1] == 200, 0])
-    assert np.array_equal(voronoi_neighbours(points[:2], np.zeros(2)), [0, 1])
+    assert np.array_equal(voronoi_neighbours(points[:2], np.zeros(3)), [0, 1])
 
 
 def test_turn_rotates_and_keeps_unit_length():
@@ -61,6 +74,15 @@ def test_turn_rotates_and_keeps_unit_length():
     rotated = turn(u, [np.pi / 2, np.pi])
     assert np.allclose(rotated, [[0, 1], [0, -1]])
     assert np.allclose(norm(rotated), 1)
+
+
+def test_turn_towards_is_turn_in_2d_and_works_in_3d():
+    u = np.array([[1.0, 0.0], [0.6, 0.8]])
+    angle = np.array([0.3, -1.2])
+    assert np.allclose(turn_towards(u, angle[:, None] * perpendicular(u)), turn(u, angle))
+    u3 = np.array([[1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
+    w = np.array([[0.0, 0.0, np.pi / 2], [0.0, 0.0, 0.0]])  # quarter turn up, no turn
+    assert np.allclose(turn_towards(u3, w), [[0, 0, 1], [0, 0, 1]])
 
 
 def test_clusters_two_groups():
@@ -82,12 +104,46 @@ def test_ray_to_alpha_shape():
     assert ray_to_alpha_shape(points, origin, np.array([-1.0, 0.0]), 3) == np.inf
 
 
+def test_ray_to_alpha_shape_3d():
+    # a cubic block of prey from x = 10 to x = 14
+    xs, ys, zs = np.meshgrid(np.arange(10, 15), np.arange(-2, 3), np.arange(-2, 3))
+    points = np.column_stack([xs.ravel(), ys.ravel(), zs.ravel()]).astype(float)
+    points += np.random.default_rng(0).normal(0, 1e-3, points.shape)  # avoid degenerate cubes
+    origin = np.zeros(3)
+    assert np.isclose(ray_to_alpha_shape(points, origin, np.array([1.0, 0, 0]), 3), 10, atol=0.01)
+    assert ray_to_alpha_shape(points, origin, np.array([-1.0, 0, 0]), 3) == np.inf
+
+
 def test_init_school():
     p = Params(N=100)
     pos, u = init_school(p, np.random.default_rng(0))
     assert pos.shape == (100, 2)
     assert np.allclose(u, u[0])  # everyone heads the same way
     assert np.isclose(norm(u[0]), 1)
+
+
+def test_init_school_3d():
+    p = Params(dim=3, N=400)
+    pos, u = init_school(p, np.random.default_rng(0))
+    assert pos.shape == (400, 3)
+    assert np.allclose(u, u[0])
+    assert np.isclose(norm(u[0]), 1)
+    assert len(largest_cluster(pos, p.cludist)) == 400  # one compact school
+
+
+def test_prey_step_3d():
+    p = Params(dim=3, cpp_neighbour_count=False, Dphi=0)
+    # two prey closer than rep_range, side by side: they move apart in 3D too
+    pos = np.array([[0.0, 0.0, 0.0], [0.0, 0.5, 0.0]])
+    u = np.tile([1.0, 0.0, 0.0], (2, 1))
+    new_pos, new_u = prey_step(pos, u, np.full(2, 2.0), p, np.random.default_rng(0))
+    assert new_pos.shape == (2, 3)
+    assert norm(new_pos[1] - new_pos[0]) > 0.5
+    assert np.allclose(norm(new_u), 1)
+    # with noise, headings stay unit vectors
+    p.Dphi = 0.5
+    _, new_u = prey_step(pos, u, np.full(2, 2.0), p, np.random.default_rng(0))
+    assert np.allclose(norm(new_u), 1)
 
 
 def test_alignment_strengths():
@@ -125,6 +181,45 @@ def test_simulate_is_reproducible():
     assert np.allclose(a["pred_pos"], b["pred_pos"])
     assert np.array_equal(a["kills"], b["kills"])
     assert a["prey_pos"].shape == (10, 50, 2)  # 2 time units, one frame every 0.2
+
+
+def test_simulate_3d():
+    p = Params(dim=3, cpp_neighbour_count=False, N=50, pred_time=2, attack_time=2)
+    a = simulate(p, seed=3)
+    b = simulate(p, seed=3)
+    assert np.allclose(a["pred_pos"], b["pred_pos"])
+    assert a["prey_pos"].shape == (10, 50, 3)
+    assert np.allclose(norm(a["pred_u"]), 1)
+    # the predator starts outside the school, about pred_radius away
+    assert np.nanmin(norm(a["prey_pos"][0] - a["pred_pos"][0])) > p.pred_radius / 2
+
+
+def test_reflect_mirrors_below_the_surface():
+    surface = (np.array([0.0, 0.0, 1.0]), 1.0)
+    pos = np.array([[0.0, 0.0, 1.5], [0.0, 0.0, 0.5]])
+    u = np.array([[0.0, 0.6, 0.8], [0.0, 0.6, 0.8]])
+    pos2, u2 = reflect(pos, u, surface)
+    assert np.allclose(pos2, [[0, 0, 0.5], [0, 0, 0.5]])  # only the first one crossed
+    assert np.allclose(u2, [[0, 0.6, -0.8], [0, 0.6, 0.8]])
+    x, v = reflect(np.array([0.0, 0.0, 2.0]), np.array([0.0, 0.0, 1.0]), surface)  # one agent
+    assert np.allclose(x, [0, 0, 0]) and np.allclose(v, [0, 0, -1])
+
+
+def test_surface():
+    for below in (False, True):
+        p = Params(dim=3, N=50, pred_time=3, attack_time=4, surface=True, pred_below=below)
+        r = simulate(p, seed=2)
+        up, level = r["surface"]
+        assert np.isclose(norm(up), 1)
+        depth = level - r["prey_pos"] @ up
+        assert np.nanmin(depth) >= 0  # no prey above the surface
+        pred_depth = level - r["pred_pos"][0] @ up
+        school_depth = np.nanmean(depth[0])
+        if below:  # starts below the school, heading up
+            assert pred_depth > school_depth + p.pred_radius / 2
+            assert np.allclose(r["pred_u"][0], up)
+        else:  # starts at the depth of the school
+            assert abs(pred_depth - school_depth) < p.pred_radius
 
 
 def test_control_school_leaves_the_attacked_school_unchanged():
